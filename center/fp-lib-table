@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name footprints)(type KiCad)(uri /home/user/toys/led_tape_display/corner/footprints.pretty)(options "")(descr ""))
+  (lib (name Capacitor_THT)(type KiCad)(uri /home/user/ref/kicad-footprints/Capacitor_THT.pretty)(options "")(descr ""))
+)

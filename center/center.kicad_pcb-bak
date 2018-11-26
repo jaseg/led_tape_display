@@ -2,7 +2,7 @@
 
   (general
     (thickness 1.6)
-    (drawings 87)
+    (drawings 83)
     (tracks 363)
     (zones 0)
     (modules 52)
@@ -2461,18 +2461,6 @@
     )
   )
 
-  (gr_text github.com/jaseg/8seg (at 98.71 115.46) (layer B.SilkS)
-    (effects (font (size 1.5 1.5) (thickness 0.3)) (justify mirror))
-  )
-  (gr_text cc-by-sa (at 82.09 105.76) (layer B.SilkS)
-    (effects (font (size 1.5 1.5) (thickness 0.3)) (justify mirror))
-  )
-  (gr_text "(c)2018 jaseg" (at 83.78 103.58) (layer B.SilkS)
-    (effects (font (size 1.5 1.5) (thickness 0.3)) (justify mirror))
-  )
-  (gr_text "8seg R01" (at 85.89 100.04) (layer B.SilkS)
-    (effects (font (size 3 3) (thickness 0.5)) (justify mirror))
-  )
   (gr_text ↑UP↑ (at 99.65 78.02) (layer B.SilkS) (tstamp 5C2A4E04)
     (effects (font (size 3 3) (thickness 0.6)) (justify mirror))
   )
