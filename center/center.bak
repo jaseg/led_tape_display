@@ -1,4 +1,5 @@
 EESchema Schematic File Version 4
+LIBS:center-cache
 EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
@@ -439,17 +440,6 @@ Wire Wire Line
 Wire Wire Line
 	3800 4450 4200 4450
 $Comp
-L Transistor_FET:IRF6710S2 Q3
-U 1 1 5C1F9130
-P 5250 5450
-F 0 "Q3" H 5455 5496 50  0000 L CNN
-F 1 "AO3400" H 5455 5405 50  0000 L CNN
-F 2 "TO_SOT_Packages_SMD:SOT-23" H 5250 5450 50  0001 C CIN
-F 3 "https://www.infineon.com/dgdl/irf6710s2pbf.pdf?fileId=5546d462533600a4015355ece3db1a78" H 5250 5450 50  0001 L CNN
-	1    5250 5450
-	1    0    0    -1  
-$EndComp
-$Comp
 L Device:R_Small R10
 U 1 1 5C1F9EE6
 P 5350 5050
@@ -601,17 +591,6 @@ Wire Wire Line
 Text Label 4400 5450 0    50   ~ 0
 LOAD
 $Comp
-L Transistor_FET:IRF6710S2 Q4
-U 1 1 5C24FD36
-P 6850 5450
-F 0 "Q4" H 7055 5496 50  0000 L CNN
-F 1 "AO3400" H 7055 5405 50  0000 L CNN
-F 2 "TO_SOT_Packages_SMD:SOT-23" H 6850 5450 50  0001 C CIN
-F 3 "https://www.infineon.com/dgdl/irf6710s2pbf.pdf?fileId=5546d462533600a4015355ece3db1a78" H 6850 5450 50  0001 L CNN
-	1    6850 5450
-	1    0    0    -1  
-$EndComp
-$Comp
 L power:GND #PWR0108
 U 1 1 5C24FD42
 P 6950 5900
@@ -670,17 +649,6 @@ Text Label 7150 5150 2    50   ~ 0
 Q1
 Wire Wire Line
 	7150 5150 6950 5150
-$Comp
-L Transistor_FET:IRF6710S2 Q1
-U 1 1 5C265A5A
-P 6850 4350
-F 0 "Q1" H 7055 4396 50  0000 L CNN
-F 1 "AO3400" H 7055 4305 50  0000 L CNN
-F 2 "TO_SOT_Packages_SMD:SOT-23" H 6850 4350 50  0001 C CIN
-F 3 "https://www.infineon.com/dgdl/irf6710s2pbf.pdf?fileId=5546d462533600a4015355ece3db1a78" H 6850 4350 50  0001 L CNN
-	1    6850 4350
-	1    0    0    -1  
-$EndComp
 $Comp
 L power:GND #PWR0109
 U 1 1 5C265A60
@@ -745,7 +713,7 @@ L Transistor_FET:IRLML6402 Q2
 U 1 1 5C26D08A
 P 8700 4600
 F 0 "Q2" H 8905 4554 50  0000 L CNN
-F 1 "IRLML6402" H 8905 4645 50  0000 L CNN
+F 1 "AO3401" H 8905 4645 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 8900 4525 50  0001 L CIN
 F 3 "https://www.infineon.com/dgdl/irlml6402pbf.pdf?fileId=5546d462533600a401535668d5c2263c" H 8700 4600 50  0001 L CNN
 	1    8700 4600
@@ -849,7 +817,7 @@ L Transistor_FET:IRLML6402 Q5
 U 1 1 5C2DA7FA
 P 8700 5700
 F 0 "Q5" H 8905 5654 50  0000 L CNN
-F 1 "IRLML6402" H 8905 5745 50  0000 L CNN
+F 1 "AO3401" H 8905 5745 50  0000 L CNN
 F 2 "TO_SOT_Packages_SMD:SOT-23" H 8900 5625 50  0001 L CIN
 F 3 "https://www.infineon.com/dgdl/irlml6402pbf.pdf?fileId=5546d462533600a401535668d5c2263c" H 8700 5700 50  0001 L CNN
 	1    8700 5700
@@ -1260,4 +1228,37 @@ Wire Wire Line
 	2600 5150 2800 5150
 Wire Wire Line
 	2600 5150 2600 5300
+$Comp
+L Transistor_FET:BSS83P Q?
+U 1 1 5C577582
+P 6850 4350
+F 0 "Q?" H 7055 4396 50  0000 L CNN
+F 1 "AO3400" H 7055 4305 50  0000 L CNN
+F 2 "Package_TO_SOT_SMD:SOT-23" H 7050 4275 50  0001 L CIN
+F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 6850 4350 50  0001 L CNN
+	1    6850 4350
+	1    0    0    -1  
+$EndComp
+$Comp
+L Transistor_FET:BSS83P Q?
+U 1 1 5C57CF20
+P 5250 5450
+F 0 "Q?" H 5455 5496 50  0000 L CNN
+F 1 "AO3400" H 5455 5405 50  0000 L CNN
+F 2 "Package_TO_SOT_SMD:SOT-23" H 5450 5375 50  0001 L CIN
+F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 5250 5450 50  0001 L CNN
+	1    5250 5450
+	1    0    0    -1  
+$EndComp
+$Comp
+L Transistor_FET:BSS83P Q?
+U 1 1 5C57D930
+P 6850 5450
+F 0 "Q?" H 7055 5496 50  0000 L CNN
+F 1 "AO3400" H 7055 5405 50  0000 L CNN
+F 2 "Package_TO_SOT_SMD:SOT-23" H 7050 5375 50  0001 L CIN
+F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 6850 5450 50  0001 L CNN
+	1    6850 5450
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
