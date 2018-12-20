@@ -1,0 +1,11 @@
+*.elf
+*.o
+*.expand
+*.hex
+*.lst
+*.map
+*.bin
+sources.c
+sources.tar.xz
+sources.tar.xz.zip
+8b10b_test
