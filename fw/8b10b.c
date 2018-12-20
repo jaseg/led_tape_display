@@ -1,39 +1,42 @@
 
+#include <assert.h>
+#include <stdio.h>
+
 #include "8b10b.h"
 
-static const struct entry_5b6b map_5b6b[32] = {
-    {0b100111, 0b011000}, /* D.00 */
-    {0b011101, 0b100010}, /* D.01 */
-    {0b101101, 0b010010}, /* D.02 */
-    {0b110001, 0b110001}, /* D.03 */
-    {0b110101, 0b001010}, /* D.04 */
-    {0b101001, 0b101001}, /* D.05 */
-    {0b011001, 0b011001}, /* D.06 */
-    {0b111000, 0b000111}, /* D.07 */
-    {0b111001, 0b000110}, /* D.08 */
-    {0b100101, 0b100101}, /* D.09 */
-    {0b010101, 0b010101}, /* D.10 */
-    {0b110100, 0b110100}, /* D.11 */
-    {0b001101, 0b001101}, /* D.12 */
-    {0b101100, 0b101100}, /* D.13 */
-    {0b011100, 0b011100}, /* D.14 */
-    {0b010111, 0b101000}, /* D.15 */
-    {0b011011, 0b100100}, /* D.16 */
-    {0b100011, 0b100011}, /* D.17 */
-    {0b010011, 0b010011}, /* D.18 */
-    {0b110010, 0b110010}, /* D.19 */
-    {0b001011, 0b001011}, /* D.20 */
-    {0b101010, 0b101010}, /* D.21 */
-    {0b011010, 0b011010}, /* D.22 */
-    {0b111010, 0b000101}, /* D.23 */
-    {0b110011, 0b001100}, /* D.24 */
-    {0b100110, 0b100110}, /* D.25 */
-    {0b010110, 0b010110}, /* D.26 */
-    {0b110110, 0b001001}, /* D.27 */
-    {0b001110, 0b001110}, /* D.28 */
-    {0b101110, 0b010001}, /* D.29 */
-    {0b011110, 0b100001}, /* D.30 */
-    {0b101011, 0b010100}  /* D.31 */
+static const struct entry map_5b6b[32] = {
+    {0b100111, 0b011000, 2}, /* D.00 */
+    {0b011101, 0b100010, 2}, /* D.01 */
+    {0b101101, 0b010010, 2}, /* D.02 */
+    {0b110001, 0b110001, 0}, /* D.03 */
+    {0b110101, 0b001010, 2}, /* D.04 */
+    {0b101001, 0b101001, 0}, /* D.05 */
+    {0b011001, 0b011001, 0}, /* D.06 */
+    {0b111000, 0b000111, 0}, /* D.07 */
+    {0b111001, 0b000110, 2}, /* D.08 */
+    {0b100101, 0b100101, 0}, /* D.09 */
+    {0b010101, 0b010101, 0}, /* D.10 */
+    {0b110100, 0b110100, 0}, /* D.11 */
+    {0b001101, 0b001101, 0}, /* D.12 */
+    {0b101100, 0b101100, 0}, /* D.13 */
+    {0b011100, 0b011100, 0}, /* D.14 */
+    {0b010111, 0b101000, 2}, /* D.15 */
+    {0b011011, 0b100100, 2}, /* D.16 */
+    {0b100011, 0b100011, 0}, /* D.17 */
+    {0b010011, 0b010011, 0}, /* D.18 */
+    {0b110010, 0b110010, 0}, /* D.19 */
+    {0b001011, 0b001011, 0}, /* D.20 */
+    {0b101010, 0b101010, 0}, /* D.21 */
+    {0b011010, 0b011010, 0}, /* D.22 */
+    {0b111010, 0b000101, 2}, /* D.23 */
+    {0b110011, 0b001100, 2}, /* D.24 */
+    {0b100110, 0b100110, 0}, /* D.25 */
+    {0b010110, 0b010110, 0}, /* D.26 */
+    {0b110110, 0b001001, 2}, /* D.27 */
+    {0b001110, 0b001110, 0}, /* D.28 */
+    {0b101110, 0b010001, 2}, /* D.29 */
+    {0b011110, 0b100001, 2}, /* D.30 */
+    {0b101011, 0b010100, 2}  /* D.31 */
 };
 
 static const int8_t map_6b5b[64] = {
@@ -87,22 +90,22 @@ static const int8_t map_6b5b[64] = {
     [0b111010] = 23  /* rd = -1 */
 };
 
-static const struct entry_5b6b K28 = {0b001111, 0b110000};
+static const struct entry K28 = {0b001111, 0b110000};
 
-static const struct entry_3b4b map_d_3b4b[7] = {
-    {0b1011, 0b0100}, /* D.x.0 */
-    {0b1001, 0b1001}, /* D.x.1 */
-    {0b0101, 0b0101}, /* D.x.2 */
-    {0b1100, 0b0011}, /* D.x.3 */
-    {0b1101, 0b0010}, /* D.x.4 */
-    {0b1010, 0b1010}, /* D.x.5 */
-    {0b0110, 0b0110}  /* D.x.6 */
+static const struct entry map_3b4b_d[8] = {
+    {0b1011, 0b0100, 2}, /* D.x.0  */
+    {0b1001, 0b1001, 0}, /* D.x.1  */
+    {0b0101, 0b0101, 0}, /* D.x.2  */
+    {0b1100, 0b0011, 0}, /* D.x.3  */
+    {0b1101, 0b0010, 2}, /* D.x.4  */
+    {0b1010, 0b1010, 0}, /* D.x.5  */
+    {0b0110, 0b0110, 0}, /* D.x.6  */
+    {0b1110, 0b0001, 2}  /* D.x.P7 */
 };
 
-static const struct entry_3b4b  Dx_P7 = {0b1110, 0b0001},
-                                Dx_A7 = {0b0111, 0b1000};
+static const struct entry Dx_A7 = {0b0111, 0b1000, 2};
 
-static const struct entry_3b4b map_3b4b_k[8] = {
+static const struct entry map_3b4b_k[8] = {
     {0b1011, 0b0100}, /* K.x.0 */
     {0b0110, 0b1001}, /* K.x.1 */
     {0b1010, 0b0101}, /* K.x.2 */
@@ -147,12 +150,12 @@ static const uint16_t k_sym_map[K_CODES_LAST] = {
     [K30_7] = 0b0111101000
 };
 
-void xfr_8b10b_reset(struct state_8b10b *st) {
+void xfr_8b10b_reset(struct state_8b10b_dec *st) {
     st->rx = 0;
     st->bit_ctr = 0; /* unsynchronized */
 }
 
-int xfr_8b10b_feed_bit(struct state_8b10b *st, int bit) {
+int xfr_8b10b_feed_bit(struct state_8b10b_dec *st, int bit) {
     uint32_t pattern = st->rx = (st->rx<<1 | !!bit) & 0x3ff;
     uint16_t comma = k_sym_map[K28_1];
     if (pattern == comma || pattern == ((~comma)&0x3ff)) {
@@ -184,7 +187,44 @@ int xfr_8b10b_feed_bit(struct state_8b10b *st, int bit) {
     return -DECODING_IN_PROGRESS;
 }
 
-bool xfr_8b10b_has_sync(struct state_8b10b *st) {
+bool xfr_8b10b_has_sync(struct state_8b10b_dec *st) {
     return st->bit_ctr != 0;
+}
+
+void xfr_8b10b_encode_reset(struct state_8b10b_enc *st) {
+    st->rd = -1;
+}
+
+int xfr_8b10b_encode(struct state_8b10b_enc *st, int data) {
+    if (data < 0) {
+        if (-data >= sizeof(k_sym_map)/sizeof(k_sym_map[0]))
+            return -EINVAL;
+
+        return k_sym_map[-data];
+    }
+
+    if (data > 255)
+        return -EINVAL;
+
+    int p5b = data&0x1f, p3b = data>>5;
+    //fprintf(stderr, "\nrd %d data %x p5b %d p3b %d\n", st->rd, data, p5b, p3b);
+
+    int x5b = (st->rd == -1) ?  map_5b6b[p5b].rd_neg : map_5b6b[p5b].rd_pos;
+    st->rd -= map_5b6b[p5b].disp * st->rd;
+    //fprintf(stderr, "\nnow: rd %d data %x p5b %d p3b %d\n", st->rd, data, p5b, p3b);
+    assert(st->rd == -1 || st->rd == 1);
+
+    int x3b = (st->rd == -1) ?  map_3b4b_d[p3b].rd_neg : map_3b4b_d[p3b].rd_pos;
+    if (p3b == 7) {
+        if (   (st->rd == -1 && (p5b == 17 || p5b == 18 || p5b == 20))
+            || (st->rd ==  1 && (p5b == 11 || p5b == 13 || p5b == 14))) {
+            //fprintf(stderr, "A7 override\n");
+            x3b = (st->rd == -1) ?  Dx_A7.rd_neg : Dx_A7.rd_pos;
+        }
+    }
+    st->rd -= map_3b4b_d[p3b].disp * st->rd; /* D.x.A7 and D.x.P7 both have parity 2 */
+    assert(st->rd == -1 || st->rd == 1);
+
+    return x5b<<4 | x3b;
 }
 

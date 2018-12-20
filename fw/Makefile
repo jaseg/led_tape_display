@@ -86,7 +86,10 @@ main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f
 program: main.elf openocd.cfg
 	openocd -f openocd.cfg -c "program $< verify reset exit"
 
-8b10b_test: 8b10b_test.c 8b10b.c
+8b10b_test_encode: 8b10b_test_encode.c 8b10b.c
+	gcc -o $@ $^
+
+8b10b_test_decode: 8b10b_test_decode.c 8b10b.c
 	gcc -o $@ $^
 
 clean:

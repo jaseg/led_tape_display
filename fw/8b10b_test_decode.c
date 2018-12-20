@@ -21,8 +21,7 @@ static const char * const rc_names[] = {
 };
 
 int main(void) {
-    struct state_8b10b st;
-
+    struct state_8b10b_dec st;
     xfr_8b10b_reset(&st);
 
     int c;
@@ -33,14 +32,18 @@ int main(void) {
         if (comment) {
             if (c == '\n')
                 comment = 0;
+            printf("%c", c);
             continue;
         }
 
-        if (c == '\r' || c == ' ' || c == '\t' || c == '\n')
+        if (c == '\r' || c == ' ' || c == '\t' || c == '\n') {
+            printf("%c", c);
             continue;
+        }
 
         if (c == '#') {
             comment = 1;
+            printf("%c", c);
             continue;
         }
 
@@ -57,9 +60,13 @@ int main(void) {
         char sync_status = xfr_8b10b_has_sync(&st) ? 'S' : 'U';
 
         if (read_result >= 0) {
-            fprintf(stdout, "%c%02x ", sync_status, read_result);
+            //fprintf(stdout, "%c%02x ", sync_status, read_result);
+            fprintf(stdout, "%02x", read_result);
 
         } else {
+            if (-read_result == DECODING_IN_PROGRESS)
+                continue;
+
             if (-read_result > sizeof(rc_names)/sizeof(rc_names[0])) {
                 fprintf(stderr, "Illegal read result %d. Exiting.\n", read_result);
                 return 2;
@@ -71,7 +78,8 @@ int main(void) {
                 return 2;
             }
 
-            fprintf(stdout, "%c%s ", sync_status, msg);
+            //fprintf(stdout, "%c%s ", sync_status, msg);
+            fprintf(stdout, "%s", msg);
         }
     }
 }

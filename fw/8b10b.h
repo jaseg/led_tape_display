@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <errno.h>
 
 enum k_code {
     K28_0=1, K28_1, K28_2, K28_3,
@@ -17,22 +18,24 @@ enum decoder_return_codes {
     DECODING_IN_PROGRESS
 };
 
-struct entry_3b4b {
-    uint8_t rd_neg, rd_pos;
+struct entry {
+    uint8_t rd_neg, rd_pos, disp;
 };
 
-struct entry_5b6b {
-    uint8_t rd_neg, rd_pos;
-};
-
-struct state_8b10b {
+struct state_8b10b_dec {
     uint32_t rx; 
     int bit_ctr;
 };
 
+struct state_8b10b_enc {
+    int rd;
+};
 
-void xfr_8b10b_reset(struct state_8b10b *st);
-int xfr_8b10b_feed_bit(struct state_8b10b *st, int bit);
-bool xfr_8b10b_has_sync(struct state_8b10b *st);
+void xfr_8b10b_reset(struct state_8b10b_dec *st);
+int xfr_8b10b_feed_bit(struct state_8b10b_dec *st, int bit);
+bool xfr_8b10b_has_sync(struct state_8b10b_dec *st);
+
+void xfr_8b10b_encode_reset(struct state_8b10b_enc *st);
+int xfr_8b10b_encode(struct state_8b10b_enc *st, int data);
 
 #endif
