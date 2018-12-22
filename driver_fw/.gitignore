@@ -1,0 +1,13 @@
+*.elf
+*.o
+*.expand
+*.hex
+*.lst
+*.map
+*.bin
+*.pp
+sources.c
+sources.tar.xz
+sources.tar.xz.zip
+8b10b_test_decode
+8b10b_test_encode

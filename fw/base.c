@@ -1,5 +1,6 @@
 
 #include <unistd.h>
+#include <stdbool.h>
 
 int __errno = 0;
 void *_impure_ptr = NULL;
@@ -18,4 +19,7 @@ size_t strlen(const char *s) {
     const char *start = s;
     while (*s++);
     return s - start - 1;
+}
+
+void __assert_func(bool value) {
 }

@@ -38,8 +38,8 @@ int main(void) {
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
     GPIOA->MODER |=
-          (3<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A */
-        | (3<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B */
+          (0<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A */
+        | (0<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B */
         | (1<<GPIO_MODER_MODER2_Pos)  /* PA2  - LOAD */
         | (1<<GPIO_MODER_MODER3_Pos)  /* PA3  - CH0 */
         | (1<<GPIO_MODER_MODER4_Pos)  /* PA4  - CH3 */
@@ -64,8 +64,44 @@ int main(void) {
         GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
         GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
     }
+    set_outputs(0);
+
+    uint8_t out_state = 0x01;
+#define DEBOUNCE 100
+    int debounce_ctr = 0;
+    int val_last = 0;
+    int ctr = 0;
+#define RESET 1000
+    int reset_ctr = 0;
     while (42) {
 #define FOO 500000
+        if (reset_ctr)
+            reset_ctr--;
+        else
+            set_outputs(0);
+
+        if (debounce_ctr) {
+            debounce_ctr--;
+        } else {
+            int val = !!(GPIOA->IDR & 1);
+            debounce_ctr = DEBOUNCE;
+
+            if (val != val_last) {
+                if (val)
+                    set_outputs(out_state & 0xf);
+                else
+                    set_outputs(out_state >> 4);
+                reset_ctr = RESET;
+                val_last = val;
+                ctr++;
+
+                if (ctr == 100) {
+                    ctr = 0;
+                    out_state = out_state<<1 | out_state>>7;
+                }
+            }
+        }
+        /*
         for (int i=0; i<FOO; i++) ;
         set_outputs(0x1);
         for (int i=0; i<FOO; i++) ;
@@ -74,6 +110,9 @@ int main(void) {
         set_outputs(0x4);
         for (int i=0; i<FOO; i++) ;
         set_outputs(0x8);
+        */
+        //for (int i=0; i<8*FOO; i++) ;
+        //GPIOA->ODR ^= 4;
     }
 }
 
