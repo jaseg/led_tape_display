@@ -15,7 +15,8 @@ enum k_code {
 enum decoder_return_codes {
     _K_CODES_LAST = K_CODES_LAST,
     DECODING_ERROR,
-    DECODING_IN_PROGRESS
+    DECODING_IN_PROGRESS,
+    DECODER_RETURN_CODE_LAST
 };
 
 struct entry {

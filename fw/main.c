@@ -17,29 +17,34 @@
 
 #include "global.h"
 
+#include "adc.h"
+
 volatile unsigned int sys_time = 0;
 volatile unsigned int sys_time_seconds = 0;
+
+void TIM1_BRK_UP_TRG_COM_Handler() {
+    TIM1->SR &= ~TIM_SR_UIF_Msk;
+}
 
 int main(void) {
     RCC->CR |= RCC_CR_HSEON;
     while (!(RCC->CR&RCC_CR_HSERDY));
     RCC->CFGR &= ~RCC_CFGR_PLLMUL_Msk & ~RCC_CFGR_SW_Msk & ~RCC_CFGR_PPRE_Msk & ~RCC_CFGR_HPRE_Msk;
-    RCC->CFGR |= (2<<RCC_CFGR_PLLMUL_Pos) | RCC_CFGR_PLLSRC_HSE_PREDIV; /* PLL x4 -> 32.0MHz */
-    RCC->CFGR2 &= ~RCC_CFGR2_PREDIV_Msk;
-    RCC->CFGR2 |= RCC_CFGR2_PREDIV_DIV2; /* prediv :2 -> 4.0MHz */
+    RCC->CFGR |= ((6-2)<<RCC_CFGR_PLLMUL_Pos) | RCC_CFGR_PLLSRC_HSE_PREDIV; /* PLL x6 -> 48.0MHz */
     RCC->CR |= RCC_CR_PLLON;
     while (!(RCC->CR&RCC_CR_PLLRDY));
     RCC->CFGR |= (2<<RCC_CFGR_SW_Pos);
     SystemCoreClockUpdate();
+    SysTick_Config(SystemCoreClock/1000); /* 1ms interval */
 
     /* Turn on lots of neat things */
-    RCC->AHBENR  |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_FLITFEN;
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_DBGMCUEN | RCC_APB2ENR_TIM1EN;
+    RCC->AHBENR  |= RCC_AHBENR_DMAEN | RCC_AHBENR_GPIOAEN | RCC_AHBENR_FLITFEN;
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_ADCEN| RCC_APB2ENR_DBGMCUEN | RCC_APB2ENR_TIM1EN | RCC_APB2ENR_TIM1EN;;
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
     GPIOA->MODER |=
-          (0<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A */
-        | (0<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B */
+          (3<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A to ADC */
+        | (3<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B to ADC */
         | (1<<GPIO_MODER_MODER2_Pos)  /* PA2  - LOAD */
         | (1<<GPIO_MODER_MODER3_Pos)  /* PA3  - CH0 */
         | (1<<GPIO_MODER_MODER4_Pos)  /* PA4  - CH3 */
@@ -57,7 +62,20 @@ int main(void) {
         | (2<<GPIO_OSPEEDR_OSPEEDR6_Pos)   /* CH2 */
         | (2<<GPIO_OSPEEDR_OSPEEDR7_Pos);  /* CH1 */
 
-    SysTick_Config(SystemCoreClock/1000); /* 1ms interval */
+    /* Setup CC1 and CC2. CC2 generates the LED drivers' STROBE, CC1 triggers the IRQ handler */
+    TIM1->BDTR  = TIM_BDTR_MOE;
+    TIM1->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 */
+    TIM1->CCER  = TIM_CCER_CC4E;
+    TIM1->CCR4  = 1;
+    TIM1->DIER  = TIM_DIER_UIE;
+
+    TIM1->PSC   = SystemCoreClock/1000000 - 1; /* 1.0us/tick */
+    TIM1->ARR   = 20-1; /* 20us */
+    /* Preload all values */
+    TIM1->EGR  |= TIM_EGR_UG;
+    TIM1->CR1   = TIM_CR1_ARPE;
+    /* And... go! */
+    TIM1->CR1  |= TIM_CR1_CEN;
 
     void set_outputs(uint8_t val) {
         int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
@@ -65,6 +83,8 @@ int main(void) {
         GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
     }
     set_outputs(0);
+
+    adc_init();
 
     uint8_t out_state = 0x01;
 #define DEBOUNCE 100

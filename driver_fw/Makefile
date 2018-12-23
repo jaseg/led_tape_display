@@ -9,7 +9,7 @@ OBJCOPY := arm-none-eabi-objcopy
 OBJDUMP := arm-none-eabi-objdump
 SIZE    := arm-none-eabi-size
 
-CFLAGS  = -g -Wall -std=gnu11 -O1 -fdump-rtl-expand
+CFLAGS  = -g -Wall -std=gnu11 -O1 -fdump-rtl-expand -Wno-discarded-qualifiers
 CFLAGS += -mlittle-endian -mcpu=cortex-m3 -mthumb
 #CFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS = -nostartfiles
@@ -22,7 +22,7 @@ LIBS = -lgcc
 CFLAGS += -DSTM32F103xB -DHSE_VALUE=8000000
 
 LDFLAGS += -Tstm32_flash.ld
-CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc -Iconfig
+CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc -Iconfig -I../common
 #LDFLAGS += -L$(CMSIS_PATH)/Lib/GCC -larm_cortexM0l_math
 
 ###################################################
@@ -45,7 +45,7 @@ cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f103xb.h $(CMSIS_PATH)/Include/c
 %.dot: %.elf
 	r2 -a arm -qc 'aa;agC' $< 2>/dev/null >$@
 
-main.elf: main.o startup_stm32f103xb.o system_stm32f1xx.o $(HAL_PATH)/Src/stm32f1xx_ll_utils.o cmsis_exports.o
+main.elf: main.o startup_stm32f103xb.o system_stm32f1xx.o $(HAL_PATH)/Src/stm32f1xx_ll_utils.o cmsis_exports.o ../common/8b10b.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(OBJCOPY) -O ihex $@ $(@:.elf=.hex)
 	$(OBJCOPY) -O binary $@ $(@:.elf=.bin)

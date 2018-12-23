@@ -43,7 +43,7 @@ LIBS = -lgcc
 CFLAGS += -DSTM32F030x6 -DHSE_VALUE=8000000
 
 LDFLAGS += -Tstm32_flash.ld
-CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc -Iconfig -Wno-unused
+CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc -Iconfig -Wno-unused -I../common
 LDFLAGS += -L$(CMSIS_PATH)/Lib/GCC -larm_cortexM0l_math
 
 ###################################################
@@ -66,7 +66,7 @@ cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f030x6.h $(CMSIS_PATH)/Include/c
 %.dot: %.elf
 	r2 -a arm -qc 'aa;agC' $< 2>/dev/null >$@
 	
-sources.tar.xz: main.c Makefile
+sources.tar.xz: main.c adc.c ../common/8b10b.c Makefile
 	tar -caf $@ $^
 
 # don't ask...
@@ -76,7 +76,7 @@ sources.tar.xz.zip: sources.tar.xz
 sources.c: sources.tar.xz.zip
 	xxd -i $< | head -n -1 | sed 's/=/__attribute__((section(".source_tarball"))) =/' > $@
 
-main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f0xx_ll_utils.o base.o cmsis_exports.o 8b10b.o sources.o
+main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f0xx_ll_utils.o base.o cmsis_exports.o ../common/8b10b.o adc.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(OBJCOPY) -O ihex $@ $(@:.elf=.hex)
 	$(OBJCOPY) -O binary $@ $(@:.elf=.bin)

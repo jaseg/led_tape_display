@@ -4,6 +4,9 @@
 
 #include "8b10b.h"
 
+/* Ignore warnings about some of the following arrays being unused. They will be removed by the linker. I want to keep
+ * them here for future reference. */
+#pragma GCC diagnostic ignored "-Wunused-const-variable=0"
 static const struct entry map_5b6b[32] = {
     {0b100111, 0b011000, 2}, /* D.00 */
     {0b011101, 0b100010, 2}, /* D.01 */
@@ -212,7 +215,7 @@ int xfr_8b10b_encode(struct state_8b10b_enc *st, int data) {
     int x5b = (st->rd == -1) ?  map_5b6b[p5b].rd_neg : map_5b6b[p5b].rd_pos;
     st->rd -= map_5b6b[p5b].disp * st->rd;
     //fprintf(stderr, "\nnow: rd %d data %x p5b %d p3b %d\n", st->rd, data, p5b, p3b);
-    assert(st->rd == -1 || st->rd == 1);
+    //assert(st->rd == -1 || st->rd == 1);
 
     int x3b = (st->rd == -1) ?  map_3b4b_d[p3b].rd_neg : map_3b4b_d[p3b].rd_pos;
     if (p3b == 7) {
@@ -223,7 +226,7 @@ int xfr_8b10b_encode(struct state_8b10b_enc *st, int data) {
         }
     }
     st->rd -= map_3b4b_d[p3b].disp * st->rd; /* D.x.A7 and D.x.P7 both have parity 2 */
-    assert(st->rd == -1 || st->rd == 1);
+    //assert(st->rd == -1 || st->rd == 1);
 
     return x5b<<4 | x3b;
 }
