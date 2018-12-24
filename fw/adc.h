@@ -19,6 +19,7 @@
 #define __ADC_H__
 
 #include "global.h"
+#include "8b10b.h"
 
 struct adc_measurements {
     int16_t adc_vcc_mv;
@@ -46,7 +47,7 @@ enum sampling_mode {
 };
 
 /* The weird order is to match the channels' order in the DMA buffer. Due to some configuration mistake I can't be
-bothered to fix the DMA controller outputs ADC measurements off-by-one into the output buffer. */
+bothered to fix, the DMA controller outputs ADC measurements off-by-one into the output buffer. */
 enum adc_channels {
     VREF_CH,
     VMEAS_A,
@@ -59,6 +60,21 @@ struct adc_state {
 	enum adc_mode adc_mode;
 	int adc_oversampling;
 	int mean_aggregate_len;
+	struct {
+		int threshold_mv;
+		int hysteresis_mv;
+		int debounce_cycles;
+		int symbol;
+		int base_interval_cycles;
+		/* private stuff */
+		int bit;
+		int len_ctr;
+		int committed_len_ctr;
+		int debounce_ctr;
+		struct state_8b10b_dec rx8b10b;
+	} detector;
+
+	/* private stuff */
 	int ovs_count; /* oversampling accumulator sample count */
 	uint32_t adc_aggregate[NCH]; /* oversampling accumulator */
 	uint32_t mean_aggregate_ctr;

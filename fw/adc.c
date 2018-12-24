@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define DETECTOR_CHANNEL a
 
 volatile uint16_t adc_buf[ADC_BUFSIZE];
 volatile struct adc_state adc_state = {0};
@@ -88,6 +89,12 @@ void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate
 		st.adc_aggregate[i] = 0;
 	st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0; 
 	st.mean_aggregate_ctr = 0;
+
+	st.detector.symbol = -1;
+	st.detector.bit = 0;
+	st.detector.base_interval_cycles = st.detector.committed_len_ctr = st.detector.len_ctr = 0;
+	st.detector.debounce_ctr = 0;
+	xfr_8b10b_reset((struct state_8b10b_dec *)&st.detector.rx8b10b);
 
 	adc_dma_init(NCH, true);
 
@@ -188,6 +195,30 @@ void DMA1_Channel1_IRQHandler(void) {
 
 			st.mean_aggregate_ctr = 0;
 			st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0;
+		}
+
+
+		st.detector.len_ctr++;
+		if (st.detector.len_ctr - st.detector.committed_len_ctr > st.detector.base_interval_cycles) {
+			st.detector.committed_len_ctr = st.detector.len_ctr;
+			st.detector.symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, st.detector.bit);
+		}
+
+		if (st.detector.debounce_ctr == 0) {
+			int old_bit = st.detector.bit;
+			int new_bit = old_bit;
+			if (a < st.detector.threshold_mv - st.detector.hysteresis_mv/2)
+				new_bit = 0;
+			else if (a > st.detector.threshold_mv - st.detector.hysteresis_mv/2)
+				new_bit = 1;
+
+			if (new_bit != old_bit) {
+				st.detector.bit = new_bit;
+				st.detector.debounce_ctr = st.detector.debounce_cycles;
+				st.detector.len_ctr = 0;
+			}
+		} else {
+			st.detector.debounce_ctr--;
 		}
 
         st.ovs_count = 0;
