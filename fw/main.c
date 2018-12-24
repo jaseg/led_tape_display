@@ -69,8 +69,8 @@ int main(void) {
     TIM1->CCR4  = 1;
     TIM1->DIER  = TIM_DIER_UIE;
 
-    TIM1->PSC   = SystemCoreClock/1000000 - 1; /* 1.0us/tick */
-    TIM1->ARR   = 20-1; /* 20us */
+    TIM1->PSC   = SystemCoreClock/500000 - 1; /* 0.5us/tick */
+    TIM1->ARR   = 25-1;
     /* Preload all values */
     TIM1->EGR  |= TIM_EGR_UG;
     TIM1->CR1   = TIM_CR1_ARPE;
