@@ -25,6 +25,9 @@ struct adc_measurements {
     int16_t adc_temp_celsius_tenths;
     int16_t adc_vmeas_a_mv;
     int16_t adc_vmeas_b_mv;
+    int16_t adc_mean_a_mv;
+    int16_t adc_mean_b_mv;
+    int16_t adc_mean_diff_mv;
 };
 
 enum channel_mask {
@@ -42,14 +45,32 @@ enum sampling_mode {
 	SAMPLE_FAST = 0
 };
 
+/* The weird order is to match the channels' order in the DMA buffer. Due to some configuration mistake I can't be
+bothered to fix the DMA controller outputs ADC measurements off-by-one into the output buffer. */
+enum adc_channels {
+    VREF_CH,
+    VMEAS_A,
+    VMEAS_B,
+    TEMP_CH,
+    NCH
+};
 
-extern volatile struct adc_measurements adc_data;
+struct adc_state {
+	enum adc_mode adc_mode;
+	int adc_oversampling;
+	int mean_aggregate_len;
+	int ovs_count; /* oversampling accumulator sample count */
+	uint32_t adc_aggregate[NCH]; /* oversampling accumulator */
+	uint32_t mean_aggregate_ctr;
+	uint32_t mean_aggregator[3];
+};
+
+extern volatile struct adc_state adc_state;
 extern volatile uint16_t adc_buf[ADC_BUFSIZE];
-extern enum adc_mode adc_mode;
-extern int adc_oversampling;
+extern volatile struct adc_measurements adc_data;
 
 void adc_init(void);
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
-void adc_configure_monitor_mode(int oversampling);
+void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate_len);
 
 #endif/*__ADC_H__*/

@@ -18,23 +18,17 @@
 #include "adc.h"
 
 #include <stdbool.h>
+#include <stdlib.h>
 
-
-enum adc_channels {
-    VREF_CH,
-    VMEAS_A,
-    VMEAS_B,
-    TEMP_CH,
-    NCH
-};
 
 volatile uint16_t adc_buf[ADC_BUFSIZE];
-volatile struct adc_measurements adc_data = {0};
-enum adc_mode adc_mode = ADC_UNINITIALIZED;
-int adc_oversampling = 0;
+volatile struct adc_state adc_state = {0};
+#define st adc_state
+volatile struct adc_measurements adc_data;
 
 static void adc_dma_init(int burstlen, bool enable_interrupt);
 static void adc_timer_init(int psc, int ivl);
+
 
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	/* The constant SAMPLE_FAST (0) when passed in as sampling_interval_ns is handled specially in that we turn the ADC
@@ -46,7 +40,7 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
     DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
 
 	/* keep track of current mode in global variable */
-	adc_mode = ADC_SCOPE;
+	st.adc_mode = ADC_SCOPE;
 
 	adc_dma_init(sizeof(adc_buf)/sizeof(adc_buf[0]), false);
 
@@ -79,15 +73,21 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	adc_timer_init(12/*250ns/tick*/, cycles);
 }
 
-void adc_configure_monitor_mode(int oversampling) {
+void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate_len) {
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
     DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
 
 	/* keep track of current mode in global variable */
-	adc_mode = ADC_MONITOR;
-	adc_oversampling = oversampling;
+	st.adc_mode = ADC_MONITOR;
+
+	st.adc_oversampling = oversampling;
+	st.ovs_count = 0;
+	for (int i=0; i<NCH; i++)
+		st.adc_aggregate[i] = 0;
+	st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0; 
+	st.mean_aggregate_ctr = 0;
 
 	adc_dma_init(NCH, true);
 
@@ -109,7 +109,7 @@ void adc_configure_monitor_mode(int oversampling) {
     ADC1->CR |= ADC_CR_ADEN;
     ADC1->CR |= ADC_CR_ADSTART;
 
-    adc_timer_init(SystemCoreClock/1000000/*1.0us/tick*/, 20/*us*/);
+    adc_timer_init(SystemCoreClock/1000000/*1.0us/tick*/, ivl_us);
 }
 
 static void adc_dma_init(int burstlen, bool enable_interrupt) {
@@ -150,42 +150,49 @@ static void adc_timer_init(int psc, int ivl) {
     TIM1->CR1   = TIM_CR1_ARPE;
     /* And... go! */
     TIM1->CR1  |= TIM_CR1_CEN;
-
 }
 
 void DMA1_Channel1_IRQHandler(void) {
-    /* This interrupt takes either 1.2us or 13us. It can be pre-empted by the more timing-critical UART and LED timer
-     * interrupts. */
-    static int count = 0; /* oversampling accumulator sample count */
-    static uint32_t adc_aggregate[NCH] = {0}; /* oversampling accumulator */
-
     /* Clear the interrupt flag */
     DMA1->IFCR |= DMA_IFCR_CGIF1;
 
     for (int i=0; i<NCH; i++)
-        adc_aggregate[i] += adc_buf[i];
+        st.adc_aggregate[i] += adc_buf[i];
 
-    if (++count == (1<<adc_oversampling)) {
+    if (++st.ovs_count == (1<<st.adc_oversampling)) {
         for (int i=0; i<NCH; i++)
-            adc_aggregate[i] >>= adc_oversampling;
+            st.adc_aggregate[i] >>= st.adc_oversampling;
         /* This has been copied from the code examples to section 12.9 ADC>"Temperature sensor and internal reference
          * voltage" in the reference manual with the extension that we actually measure the supply voltage instead of
          * hardcoding it. This is not strictly necessary since we're running off a bored little LDO but it's free and
          * the current supply voltage is a nice health value.
          */
-        adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(adc_aggregate[VREF_CH]);
+        adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(st.adc_aggregate[VREF_CH]);
 
-		int64_t read = adc_aggregate[TEMP_CH] * 10 * 10000;
+		int64_t read = st.adc_aggregate[TEMP_CH] * 10 * 10000;
 		int64_t vcc = adc_data.adc_vcc_mv;
 		int64_t cal = TS_CAL1 * 10 * 10000;
 		adc_data.adc_temp_celsius_tenths = 300 + ((read/4096 * vcc) - (cal/4096 * 3300))/43000;
 
-        adc_data.adc_vmeas_a_mv = (adc_aggregate[VMEAS_A]*13300L)/4096 * vcc / 3300;
-        adc_data.adc_vmeas_b_mv = (adc_aggregate[VMEAS_B]*13300L)/4096 * vcc / 3300;
+		const long vmeas_r_total = VMEAS_R_HIGH + VMEAS_R_LOW;
+        int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*vmeas_r_total)/4096 * vcc / VMEAS_R_LOW;
+        int b = adc_data.adc_vmeas_b_mv = (st.adc_aggregate[VMEAS_B]*vmeas_r_total)/4096 * vcc / VMEAS_R_LOW;
 
-        count = 0;
+		st.mean_aggregator[0] += a;
+		st.mean_aggregator[1] += b;
+		st.mean_aggregator[2] += abs(b-a);
+		if (++st.mean_aggregate_ctr == st.mean_aggregate_len) {
+			adc_data.adc_mean_a_mv = st.mean_aggregator[0] / st.mean_aggregate_len;
+			adc_data.adc_mean_b_mv = st.mean_aggregator[1] / st.mean_aggregate_len; 
+			adc_data.adc_mean_diff_mv = st.mean_aggregator[2] / st.mean_aggregate_len;
+
+			st.mean_aggregate_ctr = 0;
+			st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0;
+		}
+
+        st.ovs_count = 0;
         for (int i=0; i<NCH; i++)
-            adc_aggregate[i] = 0;
+            st.adc_aggregate[i] = 0;
     }
 }
 

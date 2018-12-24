@@ -36,11 +36,14 @@
 /* Microcontroller part number: STM32F030F4C6 */
 
 /* Things used for module status reporting. */
-#define FIRMWARE_VERSION 2
-#define HARDWARE_VERSION 4
+#define FIRMWARE_VERSION 1
+#define HARDWARE_VERSION 0
 
 #define TS_CAL1 (*(uint16_t *)0x1FFFF7B8)
 #define VREFINT_CAL (*(uint16_t *)0x1FFFF7BA)
+
+#define VMEAS_R_HIGH 10000 /* kiloohms */
+#define VMEAS_R_LOW 3300 /* kiloohms */
 
 extern volatile unsigned int sys_time;
 extern volatile unsigned int sys_time_seconds;
