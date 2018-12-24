@@ -67,7 +67,7 @@ int main(void) {
     TIM1->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE; /* Configure output compare unit 1 to PWM mode 1, enable CCR1
                                                               preload */
     TIM1->CCER = TIM_CCER_CC1NE | TIM_CCER_CC1E; /* Confiugre CH1 to complementary outputs */
-    TIM1->BDTR = TIM_BDTR_MOE | 100<<TIM_BDTR_DTG_Pos; /* Enable MOE on next update event, i.e. on initial timer load.
+    TIM1->BDTR = TIM_BDTR_MOE | (0xc0 | (63-32))<<TIM_BDTR_DTG_Pos; /* Enable MOE on next update event, i.e. on initial timer load.
                                                           Set dead-time to 100us. */
     TIM1->CR1 |= TIM_CR1_CEN;
     TIM1->ARR = 1000-1; /* Set f=1.0kHz/T=1.0ms */

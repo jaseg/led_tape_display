@@ -17,7 +17,8 @@
 
 #include "adc.h"
 
-volatile struct adc_measurements adc_data = {0};
+#include <stdbool.h>
+
 
 enum adc_channels {
     VREF_CH,
@@ -26,22 +27,80 @@ enum adc_channels {
     TEMP_CH,
     NCH
 };
-static volatile uint16_t adc_buf[1024];
 
-void adc_init(void) {
-    /* The ADC is used for temperature measurement. To compute the temperature from an ADC reading of the internal
-     * temperature sensor, the supply voltage must also be measured. Thus we are using two channels.
-     *
-     * The ADC is triggered by compare channel 4 of timer 1. The trigger is set to falling edge to trigger on compare
-     * match, not overflow.
-     */
-    ADC1->CFGR1 = ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG | (2<<ADC_CFGR1_EXTEN_Pos) | (1<<ADC_CFGR1_EXTSEL_Pos) | ADC_CFGR1_CONT;
+volatile uint16_t adc_buf[ADC_BUFSIZE];
+volatile struct adc_measurements adc_data = {0};
+enum adc_mode adc_mode = ADC_UNINITIALIZED;
+int adc_oversampling = 0;
+
+static void adc_dma_init(int burstlen, bool enable_interrupt);
+static void adc_timer_init(int psc, int ivl);
+
+void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
+	/* The constant SAMPLE_FAST (0) when passed in as sampling_interval_ns is handled specially in that we turn the ADC
+	to continuous mode to get the highest possible sampling rate. */
+
+	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
+    TIM1->CR1 &= ~TIM_CR1_CEN;
+    ADC1->CR &= ~ADC_CR_ADSTART;
+    DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
+
+	/* keep track of current mode in global variable */
+	adc_mode = ADC_SCOPE;
+
+	adc_dma_init(sizeof(adc_buf)/sizeof(adc_buf[0]), false);
+
     /* Clock from PCLK/4 instead of the internal exclusive high-speed RC oscillator. */
     ADC1->CFGR2 = (2<<ADC_CFGR2_CKMODE_Pos); /* Use PCLK/4=12MHz */
     /* Sampling time 13.5 ADC clock cycles -> total conversion time 2.17us*/
     ADC1->SMPR  = (2<<ADC_SMPR_SMP_Pos);
 
-    ADC1->CHSELR = ADC_CHSELR_CHSEL0 | ADC_CHSELR_CHSEL1;
+	/* Setup DMA and triggering */
+	if (sampling_interval_ns == SAMPLE_FAST) /* Continuous trigger */
+		ADC1->CFGR1 = ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG | ADC_CFGR1_CONT;
+	else /* Trigger from timer 1 Channel 4 */
+		ADC1->CFGR1 = ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG | (2<<ADC_CFGR1_EXTEN_Pos) | (1<<ADC_CFGR1_EXTSEL_Pos);
+    ADC1->CHSELR = channel_mask;
+	/* Perform self-calibration */
+    ADC1->CR |= ADC_CR_ADCAL;
+    while (ADC1->CR & ADC_CR_ADCAL)
+	/* Enable conversion */
+    ADC1->CR |= ADC_CR_ADSTART;
+
+	if (sampling_interval_ns == SAMPLE_FAST)
+		return; /* We don't need the timer to trigger in continuous mode. */
+
+	/* An ADC conversion takes 1.1667us, so to be sure we don't get data overruns we limit sampling to every 1.5us.
+	Since we don't have a spare PLL to generate the ADC sample clock and re-configuring the system clock just for this
+	would be overkill we round to 250ns increments. The minimum sampling rate is about 60Hz due to timer resolution. */
+	int cycles = sampling_interval_ns > 1500 ? sampling_interval_ns/250 : 6;
+	if (cycles > 0xffff)
+		cycles = 0xffff;
+	adc_timer_init(12/*250ns/tick*/, cycles);
+}
+
+void adc_configure_monitor_mode(int oversampling) {
+	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
+    TIM1->CR1 &= ~TIM_CR1_CEN;
+    ADC1->CR &= ~ADC_CR_ADSTART;
+    DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
+
+	/* keep track of current mode in global variable */
+	adc_mode = ADC_MONITOR;
+	adc_oversampling = oversampling;
+
+	adc_dma_init(NCH, true);
+
+	/* Setup DMA and triggering: Trigger from Timer 1 Channel 4 */
+    ADC1->CFGR1 = ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG | (2<<ADC_CFGR1_EXTEN_Pos) | (1<<ADC_CFGR1_EXTSEL_Pos);
+    /* Clock from PCLK/4 instead of the internal exclusive high-speed RC oscillator. */
+    ADC1->CFGR2 = (2<<ADC_CFGR2_CKMODE_Pos); /* Use PCLK/4=12MHz */
+    /* Sampling time 13.5 ADC clock cycles -> total conversion time 2.17us*/
+    ADC1->SMPR  = (2<<ADC_SMPR_SMP_Pos);
+    /* Internal VCC and temperature sensor channels */
+    ADC1->CHSELR = ADC_CHSELR_CHSEL0 | ADC_CHSELR_CHSEL1 | ADC_CHSELR_CHSEL16 | ADC_CHSELR_CHSEL17;
+    /* Enable internal voltage reference and temperature sensor */
+    ADC->CCR = ADC_CCR_TSEN | ADC_CCR_VREFEN;
     /* Perform ADC calibration */
     ADC1->CR |= ADC_CR_ADCAL;
     while (ADC1->CR & ADC_CR_ADCAL)
@@ -50,27 +109,83 @@ void adc_init(void) {
     ADC1->CR |= ADC_CR_ADEN;
     ADC1->CR |= ADC_CR_ADSTART;
 
+    adc_timer_init(SystemCoreClock/1000000/*1.0us/tick*/, 20/*us*/);
+}
+
+static void adc_dma_init(int burstlen, bool enable_interrupt) {
     /* Configure DMA 1 Channel 1 to get rid of all the data */
     DMA1_Channel1->CPAR = (unsigned int)&ADC1->DR;
     DMA1_Channel1->CMAR = (unsigned int)&adc_buf;
-    DMA1_Channel1->CNDTR = sizeof(adc_buf)/sizeof(adc_buf[0]);
+    DMA1_Channel1->CNDTR = burstlen;
     DMA1_Channel1->CCR = (0<<DMA_CCR_PL_Pos);
     DMA1_Channel1->CCR |=
           DMA_CCR_CIRC /* circular mode so we can leave it running indefinitely */
         | (1<<DMA_CCR_MSIZE_Pos) /* 16 bit */
         | (1<<DMA_CCR_PSIZE_Pos) /* 16 bit */
         | DMA_CCR_MINC
-        | DMA_CCR_TCIE; /* Enable transfer complete interrupt. */
-    DMA1_Channel1->CCR |= DMA_CCR_EN; /* Enable channel */
+        | (enable_interrupt ? DMA_CCR_TCIE : 0); /* Enable transfer complete interrupt. */
 
-    /* triggered on transfer completion. We use this to process the ADC data */
-    NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-    NVIC_SetPriority(DMA1_Channel1_IRQn, 3<<5);
+	if (enable_interrupt) {
+		/* triggered on transfer completion. We use this to process the ADC data */
+		NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+		NVIC_SetPriority(DMA1_Channel1_IRQn, 3<<5);
+	} else {
+		NVIC_DisableIRQ(DMA1_Channel1_IRQn);
+		DMA1->IFCR |= DMA_IFCR_CGIF1;
+	}
+
+    DMA1_Channel1->CCR |= DMA_CCR_EN; /* Enable channel */
+}
+
+static void adc_timer_init(int psc, int ivl) {
+    TIM1->BDTR  = TIM_BDTR_MOE; /* MOE is needed even though we only "output" a chip-internal signal TODO: Verify this. */
+    TIM1->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 to get a clean trigger signal */
+    TIM1->CCER  = TIM_CCER_CC4E; /* Enable capture/compare unit 4 connected to ADC */
+    TIM1->CCR4  = 1; /* Trigger at start of timer cycle */
+	/* Set prescaler and interval */
+    TIM1->PSC   = psc-1;
+    TIM1->ARR   = ivl-1;
+    /* Preload all values */
+    TIM1->EGR  |= TIM_EGR_UG;
+    TIM1->CR1   = TIM_CR1_ARPE;
+    /* And... go! */
+    TIM1->CR1  |= TIM_CR1_CEN;
+
 }
 
 void DMA1_Channel1_IRQHandler(void) {
+    /* This interrupt takes either 1.2us or 13us. It can be pre-empted by the more timing-critical UART and LED timer
+     * interrupts. */
+    static int count = 0; /* oversampling accumulator sample count */
+    static uint32_t adc_aggregate[NCH] = {0}; /* oversampling accumulator */
+
     /* Clear the interrupt flag */
     DMA1->IFCR |= DMA_IFCR_CGIF1;
 
+    for (int i=0; i<NCH; i++)
+        adc_aggregate[i] += adc_buf[i];
+
+    if (++count == (1<<adc_oversampling)) {
+        for (int i=0; i<NCH; i++)
+            adc_aggregate[i] >>= adc_oversampling;
+        /* This has been copied from the code examples to section 12.9 ADC>"Temperature sensor and internal reference
+         * voltage" in the reference manual with the extension that we actually measure the supply voltage instead of
+         * hardcoding it. This is not strictly necessary since we're running off a bored little LDO but it's free and
+         * the current supply voltage is a nice health value.
+         */
+        adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(adc_aggregate[VREF_CH]);
+
+		int64_t read = adc_aggregate[TEMP_CH] * 10 * 10000;
+		int64_t vcc = adc_data.adc_vcc_mv;
+		int64_t cal = TS_CAL1 * 10 * 10000;
+		adc_data.adc_temp_celsius_tenths = 300 + ((read/4096 * vcc) - (cal/4096 * 3300))/43000;
+
+        adc_data.adc_vmeas_a_mv = (adc_aggregate[VMEAS_A]*13300L)/4096 * vcc / 3300;
+        adc_data.adc_vmeas_b_mv = (adc_aggregate[VMEAS_B]*13300L)/4096 * vcc / 3300;
+
+        count = 0;
+        for (int i=0; i<NCH; i++)
+            adc_aggregate[i] = 0;
+    }
 }
 

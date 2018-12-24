@@ -27,7 +27,7 @@ OBJCOPY := arm-none-eabi-objcopy
 OBJDUMP := arm-none-eabi-objdump
 SIZE    := arm-none-eabi-size
 
-CFLAGS  = -g -Wall -std=gnu11 -O0 -fdump-rtl-expand -DMAC_ADDR=$(MAC_ADDR)
+CFLAGS  = -g -Wall -std=gnu11 -O0 -fdump-rtl-expand -DMAC_ADDR=$(MAC_ADDR) -DADC_BUFSIZE=1024
 CFLAGS += -mlittle-endian -mcpu=cortex-m0 -march=armv6-m -mthumb
 #CFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS = -nostartfiles

@@ -20,8 +20,6 @@
 
 #include "global.h"
 
-#define ADC_OVERSAMPLING 0
-
 struct adc_measurements {
     int16_t adc_vcc_mv;
     int16_t adc_temp_celsius_tenths;
@@ -29,8 +27,29 @@ struct adc_measurements {
     int16_t adc_vmeas_b_mv;
 };
 
+enum channel_mask {
+	MASK_VMEAS_A = ADC_CHSELR_CHSEL0,
+	MASK_VMEAS_B = ADC_CHSELR_CHSEL1
+};
+
+enum adc_mode {
+	ADC_UNINITIALIZED,
+	ADC_MONITOR,
+	ADC_SCOPE
+};
+
+enum sampling_mode {
+	SAMPLE_FAST = 0
+};
+
+
 extern volatile struct adc_measurements adc_data;
+extern volatile uint16_t adc_buf[ADC_BUFSIZE];
+extern enum adc_mode adc_mode;
+extern int adc_oversampling;
 
 void adc_init(void);
+void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
+void adc_configure_monitor_mode(int oversampling);
 
 #endif/*__ADC_H__*/

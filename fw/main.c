@@ -62,21 +62,6 @@ int main(void) {
         | (2<<GPIO_OSPEEDR_OSPEEDR6_Pos)   /* CH2 */
         | (2<<GPIO_OSPEEDR_OSPEEDR7_Pos);  /* CH1 */
 
-    /* Setup CC1 and CC2. CC2 generates the LED drivers' STROBE, CC1 triggers the IRQ handler */
-    TIM1->BDTR  = TIM_BDTR_MOE;
-    TIM1->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 */
-    TIM1->CCER  = TIM_CCER_CC4E;
-    TIM1->CCR4  = 1;
-    TIM1->DIER  = TIM_DIER_UIE;
-
-    TIM1->PSC   = SystemCoreClock/500000 - 1; /* 0.5us/tick */
-    TIM1->ARR   = 25-1;
-    /* Preload all values */
-    TIM1->EGR  |= TIM_EGR_UG;
-    TIM1->CR1   = TIM_CR1_ARPE;
-    /* And... go! */
-    TIM1->CR1  |= TIM_CR1_CEN;
-
     void set_outputs(uint8_t val) {
         int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
         GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
@@ -84,7 +69,7 @@ int main(void) {
     }
     set_outputs(0);
 
-    adc_init();
+	adc_configure_monitor_mode(0 /*no oversampling*/);
 
     uint8_t out_state = 0x01;
 #define DEBOUNCE 100
