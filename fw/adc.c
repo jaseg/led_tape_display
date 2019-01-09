@@ -38,12 +38,12 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
-    DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
+    DMA1_Channel1->CCR &= ~DMA_CCR_EN;
 
 	/* keep track of current mode in global variable */
 	st.adc_mode = ADC_SCOPE;
 
-	adc_dma_init(sizeof(adc_buf)/sizeof(adc_buf[0]), false);
+	adc_dma_init(sizeof(adc_buf)/sizeof(adc_buf[0]), true);
 
     /* Clock from PCLK/4 instead of the internal exclusive high-speed RC oscillator. */
     ADC1->CFGR2 = (2<<ADC_CFGR2_CKMODE_Pos); /* Use PCLK/4=12MHz */
@@ -59,7 +59,9 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	/* Perform self-calibration */
     ADC1->CR |= ADC_CR_ADCAL;
     while (ADC1->CR & ADC_CR_ADCAL)
+        ;
 	/* Enable conversion */
+    ADC1->CR |= ADC_CR_ADEN;
     ADC1->CR |= ADC_CR_ADSTART;
 
 	if (sampling_interval_ns == SAMPLE_FAST)
@@ -78,7 +80,7 @@ void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
-    DMA1_Channel1->CCR &= ~DMA_CCR_EN; /* Enable channel */
+    DMA1_Channel1->CCR &= ~DMA_CCR_EN;
 
 	/* keep track of current mode in global variable */
 	st.adc_mode = ADC_MONITOR;
@@ -162,6 +164,9 @@ static void adc_timer_init(int psc, int ivl) {
 void DMA1_Channel1_IRQHandler(void) {
     /* Clear the interrupt flag */
     DMA1->IFCR |= DMA_IFCR_CGIF1;
+    
+    if (st.adc_mode == ADC_SCOPE)
+        return;
 
     for (int i=0; i<NCH; i++)
         st.adc_aggregate[i] += adc_buf[i];
@@ -202,6 +207,7 @@ void DMA1_Channel1_IRQHandler(void) {
 		if (st.detector.len_ctr - st.detector.committed_len_ctr > st.detector.base_interval_cycles) {
 			st.detector.committed_len_ctr = st.detector.len_ctr;
 			st.detector.symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, st.detector.bit);
+            //if (st.detector.symbol != -DECODING_IN_PROGRESS)
 		}
 
 		if (st.detector.debounce_ctr == 0) {

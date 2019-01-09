@@ -69,7 +69,9 @@ int main(void) {
     }
     set_outputs(0);
 
-	adc_configure_monitor_mode(0 /*no oversampling*/, 20 /*us*/, 10000/20 /*mean window size*/);
+    /* FIXME DEBUG */
+//	adc_configure_monitor_mode(0 /*no oversampling*/, 20 /*us*/, 10000/20 /*mean window size*/);
+    adc_configure_scope_mode(MASK_VMEAS_A, 10000);
 
     uint8_t out_state = 0x01;
 #define DEBOUNCE 100
