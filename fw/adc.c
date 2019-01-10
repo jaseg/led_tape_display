@@ -258,14 +258,16 @@ void DMA1_Channel1_IRQHandler(void) {
 		//	st.detector.debounce_ctr--;
 		//}
 
+        /*
         if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
             debug_buf_pos = NCH;
             gdb_dump();
         }
         adc_buf[debug_buf_pos++] = st.detector.len_ctr;
         adc_buf[debug_buf_pos++] = st.detector.committed_len_ctr;
-        adc_buf[debug_buf_pos++] = st.detector.bit;
         adc_buf[debug_buf_pos++] = diff;
+        int foo = 0;
+        */
 
 		if (st.detector.len_ctr >= st.detector.committed_len_ctr) {
             /*
@@ -274,7 +276,40 @@ void DMA1_Channel1_IRQHandler(void) {
                 gdb_dump();
             }
             adc_buf[debug_buf_pos++] = st.detector.bit;
+            int foo = st.detector.symbol;
+            if (foo < 0 && foo != K28_1)
+                foo = 0;
+            adc_buf[debug_buf_pos++] = foo;
             */
+
+            if (st.detector.symbol != -DECODING_IN_PROGRESS) {
+                static int trig = 0;
+                if (st.detector.symbol == -K28_1) {
+                    if (trig == 10) {
+                        gdb_dump();
+                        for (int i=0; i<sizeof(adc_buf)/sizeof(adc_buf[0]); i++)
+                            adc_buf[i] = -255;
+                        trig = 0;
+                    } else if (trig == 1) {
+                        debug_buf_pos = NCH;
+                    }
+                    trig++;
+                }
+                if (debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                    debug_buf_pos = 0;
+                }
+                if (debug_buf_pos >= NCH) {
+                    adc_buf[debug_buf_pos++] = st.detector.symbol;
+                }
+            }
+            /*
+            if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                debug_buf_pos = NCH;
+                gdb_dump();
+            }
+            adc_buf[debug_buf_pos++] = st.detector.bit;
+            */
+            //foo = st.detector.bit ? 1 : -1;
 
 			st.detector.committed_len_ctr += st.detector.base_interval_cycles;
 			st.detector.symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, st.detector.bit);
@@ -285,9 +320,14 @@ void DMA1_Channel1_IRQHandler(void) {
                     gdb_dump();
                 }
                 adc_buf[debug_buf_pos++] = st.detector.symbol;
+                adc_buf[debug_buf_pos++] = st.detector.symbol == -DECODING_ERROR;
+                adc_buf[debug_buf_pos++] = st.detector.symbol == -K28_1;
+                adc_buf[debug_buf_pos++] = 0;
             }
             */
 		}
+
+        //adc_buf[debug_buf_pos++] = foo;
 		st.detector.len_ctr++;
 
         st.ovs_count = 0;

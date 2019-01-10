@@ -82,40 +82,52 @@ int main(void) {
     uint8_t txbuf[128];
     int txpos = -1;
     /* FIXME test code */
-    for (int i=0; i<sizeof(txbuf); i++)
+    for (int i=0; i<sizeof(txbuf)/sizeof(txbuf[0]); i++)
         txbuf[i] = i;
     /* FIXME end test code */
     while (42) {
         if (txstate.next_symbol == -NO_SYMBOL) {
-            txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1);
-            //if (txpos == -1)
-            //    txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1);
-            //else
-            //    txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
+            if (txpos == -1)
+                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, -K28_1);
+            else
+                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
             txpos++;
-            if (txpos == sizeof(txbuf))
+            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0]))
                 txpos = -1;
         }
     }
 }
 
-void TIM1_UP_IRQHandler() {
-    // FIXME debug code
-    static int debug_bit = 0;
-    debug_bit = !debug_bit;
+int flipbits(int in) {
+    return
+        (in&0x200)>>9 |
+        (in&0x100)>>7 |
+        (in&0x080)>>5 |
+        (in&0x040)>>3 |
+        (in&0x020)>>1 |
+        (in&0x010)<<1 |
+        (in&0x008)<<3 |
+        (in&0x004)<<5 |
+        (in&0x002)<<7 |
+        (in&0x001)<<9;
 
+}
+
+void TIM1_UP_IRQHandler() {
     TIM1->SR &= ~TIM_SR_UIF;
     int sym = txstate.current_symbol;
     int bit = sym&1;
     sym >>= 1;
     if (sym == 1) { /* last bit shifted out */
-        sym = txstate.next_symbol | 1<<10;
+        if (txstate.next_symbol == -NO_SYMBOL) /*FIXME debug code*/
+            asm volatile("bkpt");
+        sym = flipbits(txstate.next_symbol) | 1<<10;
         txstate.next_symbol = -NO_SYMBOL;
     }
     txstate.current_symbol = sym;
 
-    TIM1->CCR1 = debug_bit ? 0xffff : 0x0000;
+    TIM1->CCR1 = bit ? 0xffff : 0x0000;
 }
 
 void NMI_Handler(void) {
