@@ -61,7 +61,6 @@ struct adc_state {
 	int adc_oversampling;
 	int mean_aggregate_len;
 	struct {
-		int threshold_mv;
 		int hysteresis_mv;
 		int debounce_cycles;
 		int symbol;

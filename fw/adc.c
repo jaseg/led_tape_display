@@ -92,9 +92,13 @@ void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate
 	st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0; 
 	st.mean_aggregate_ctr = 0;
 
+    st.detector.hysteresis_mv = 6000;
+    st.detector.debounce_cycles = 0;
+    st.detector.base_interval_cycles = 10;
+
 	st.detector.symbol = -1;
 	st.detector.bit = 0;
-	st.detector.base_interval_cycles = st.detector.committed_len_ctr = st.detector.len_ctr = 0;
+	st.detector.committed_len_ctr = st.detector.len_ctr = 0;
 	st.detector.debounce_ctr = 0;
 	xfr_8b10b_reset((struct state_8b10b_dec *)&st.detector.rx8b10b);
 
@@ -161,35 +165,49 @@ static void adc_timer_init(int psc, int ivl) {
     TIM1->CR1  |= TIM_CR1_CEN;
 }
 
+/* FIXME DEBUG */
+static void gdb_dump(void) {
+}
+
 void DMA1_Channel1_IRQHandler(void) {
+    int start = SysTick->VAL;
+    static int debug_buf_pos = 0;
+
     /* Clear the interrupt flag */
     DMA1->IFCR |= DMA_IFCR_CGIF1;
     
     if (st.adc_mode == ADC_SCOPE)
         return;
 
-    for (int i=0; i<NCH; i++)
-        st.adc_aggregate[i] += adc_buf[i];
+    //for (int i=0; i<NCH; i++)
+    //    st.adc_aggregate[i] += adc_buf[i];
 
-    if (++st.ovs_count == (1<<st.adc_oversampling)) {
+    //if (++st.ovs_count == (1<<st.adc_oversampling)) {
+        /* FIXME DEBUG
         for (int i=0; i<NCH; i++)
             st.adc_aggregate[i] >>= st.adc_oversampling;
+        */
         /* This has been copied from the code examples to section 12.9 ADC>"Temperature sensor and internal reference
          * voltage" in the reference manual with the extension that we actually measure the supply voltage instead of
          * hardcoding it. This is not strictly necessary since we're running off a bored little LDO but it's free and
          * the current supply voltage is a nice health value.
          */
-        adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(st.adc_aggregate[VREF_CH]);
+        // FIXME DEBUG adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(st.adc_aggregate[VREF_CH]);
 
-		int64_t read = st.adc_aggregate[TEMP_CH] * 10 * 10000;
+		int64_t vcc = 3300;
+        /* FIXME debug
 		int64_t vcc = adc_data.adc_vcc_mv;
+		int64_t read = st.adc_aggregate[TEMP_CH] * 10 * 10000;
 		int64_t cal = TS_CAL1 * 10 * 10000;
 		adc_data.adc_temp_celsius_tenths = 300 + ((read/4096 * vcc) - (cal/4096 * 3300))/43000;
+        */
 
 		const long vmeas_r_total = VMEAS_R_HIGH + VMEAS_R_LOW;
-        int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*vmeas_r_total)/4096 * vcc / VMEAS_R_LOW;
-        int b = adc_data.adc_vmeas_b_mv = (st.adc_aggregate[VMEAS_B]*vmeas_r_total)/4096 * vcc / VMEAS_R_LOW;
+        //int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*(vmeas_r_total * vcc / VMEAS_R_LOW)) >> 12;
+        int a = adc_data.adc_vmeas_a_mv = (adc_buf[VMEAS_A]*13300) >> 12;
+        //FIXME debug int b = adc_data.adc_vmeas_b_mv = (st.adc_aggregate[VMEAS_B]*vmeas_r_total)/4096 * vcc / VMEAS_R_LOW;
 
+        /* FIXME debug
 		st.mean_aggregator[0] += a;
 		st.mean_aggregator[1] += b;
 		st.mean_aggregator[2] += abs(b-a);
@@ -201,35 +219,91 @@ void DMA1_Channel1_IRQHandler(void) {
 			st.mean_aggregate_ctr = 0;
 			st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0;
 		}
+        */
 
-
-		st.detector.len_ctr++;
-		if (st.detector.len_ctr - st.detector.committed_len_ctr > st.detector.base_interval_cycles) {
-			st.detector.committed_len_ctr = st.detector.len_ctr;
-			st.detector.symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, st.detector.bit);
-            //if (st.detector.symbol != -DECODING_IN_PROGRESS)
-		}
-
-		if (st.detector.debounce_ctr == 0) {
+		//if (st.detector.debounce_ctr == 0) {
 			int old_bit = st.detector.bit;
 			int new_bit = old_bit;
-			if (a < st.detector.threshold_mv - st.detector.hysteresis_mv/2)
+            //FIXME debug int diff = (int)b - (int)a;
+            int diff = a-5500;
+
+            /*
+            if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                debug_buf_pos = NCH;
+                gdb_dump();
+            }
+            adc_buf[debug_buf_pos++] = diff;
+            */
+
+			if (diff < - st.detector.hysteresis_mv/2)
 				new_bit = 0;
-			else if (a > st.detector.threshold_mv - st.detector.hysteresis_mv/2)
+			else if (diff > st.detector.hysteresis_mv/2)
 				new_bit = 1;
+
+            /*
+            if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                debug_buf_pos = NCH;
+                gdb_dump();
+            }
+            adc_buf[debug_buf_pos++] = new_bit;
+            */
 
 			if (new_bit != old_bit) {
 				st.detector.bit = new_bit;
-				st.detector.debounce_ctr = st.detector.debounce_cycles;
+				//st.detector.debounce_ctr = st.detector.debounce_cycles;
 				st.detector.len_ctr = 0;
+                st.detector.committed_len_ctr = st.detector.base_interval_cycles>>1;
 			}
-		} else {
-			st.detector.debounce_ctr--;
+		//} else {
+		//	st.detector.debounce_ctr--;
+		//}
+
+        if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+            debug_buf_pos = NCH;
+            gdb_dump();
+        }
+        adc_buf[debug_buf_pos++] = st.detector.len_ctr;
+        adc_buf[debug_buf_pos++] = st.detector.committed_len_ctr;
+        adc_buf[debug_buf_pos++] = st.detector.bit;
+        adc_buf[debug_buf_pos++] = diff;
+
+		if (st.detector.len_ctr >= st.detector.committed_len_ctr) {
+            /*
+            if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                debug_buf_pos = NCH;
+                gdb_dump();
+            }
+            adc_buf[debug_buf_pos++] = st.detector.bit;
+            */
+
+			st.detector.committed_len_ctr += st.detector.base_interval_cycles;
+			st.detector.symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, st.detector.bit);
+            /*
+            if (st.detector.symbol != -DECODING_IN_PROGRESS) {
+                if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+                    debug_buf_pos = NCH;
+                    gdb_dump();
+                }
+                adc_buf[debug_buf_pos++] = st.detector.symbol;
+            }
+            */
 		}
+		st.detector.len_ctr++;
 
         st.ovs_count = 0;
         for (int i=0; i<NCH; i++)
             st.adc_aggregate[i] = 0;
+    //}
+    int end = SysTick->VAL;
+    /*
+    if (debug_buf_pos < NCH || debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
+        debug_buf_pos = NCH;
+        gdb_dump();
     }
+    int tdiff = start - end;
+    if (tdiff < 0)
+        tdiff += SysTick->LOAD;
+    adc_buf[debug_buf_pos++] = tdiff;
+    */
 }
 

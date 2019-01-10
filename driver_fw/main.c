@@ -87,10 +87,11 @@ int main(void) {
     /* FIXME end test code */
     while (42) {
         if (txstate.next_symbol == -NO_SYMBOL) {
-            if (txpos == -1)
-                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1);
-            else
-                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
+            txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1);
+            //if (txpos == -1)
+            //    txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1);
+            //else
+            //    txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
             txpos++;
             if (txpos == sizeof(txbuf))
@@ -100,6 +101,10 @@ int main(void) {
 }
 
 void TIM1_UP_IRQHandler() {
+    // FIXME debug code
+    static int debug_bit = 0;
+    debug_bit = !debug_bit;
+
     TIM1->SR &= ~TIM_SR_UIF;
     int sym = txstate.current_symbol;
     int bit = sym&1;
@@ -110,7 +115,7 @@ void TIM1_UP_IRQHandler() {
     }
     txstate.current_symbol = sym;
 
-    TIM1->CCR1 = bit ? 0xffff : 0x0000;
+    TIM1->CCR1 = debug_bit ? 0xffff : 0x0000;
 }
 
 void NMI_Handler(void) {
