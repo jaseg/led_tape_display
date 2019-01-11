@@ -79,12 +79,24 @@ int main(void) {
     NVIC_EnableIRQ(TIM1_UP_IRQn);
     NVIC_SetPriority(TIM1_UP_IRQn, 3<<4);
 
-    uint8_t txbuf[128];
+
+unsigned char x, a, b, c;
+unsigned char random() {
+    x++; //x is incremented every round and is not affected by any other variable
+    a = (a ^ c ^ x); //note the mix of addition and XOR
+    b = (b + a); //And the use of very few instructions
+    c = ((c + (b >> 1) ^ a)); // the AES S-Box Operation ensures an even distributon of entropy
+    return (c);
+}
+
+
+    uint8_t txbuf[3] = {0x01, 0x05, 0x01};
     int txpos = -1;
     /* FIXME test code */
-    for (int i=0; i<sizeof(txbuf)/sizeof(txbuf[0]); i++)
-        txbuf[i] = i;
+    //for (int i=0; i<sizeof(txbuf)/sizeof(txbuf[0]); i++)
+    //    txbuf[i] = i;
     /* FIXME end test code */
+    int i = 0;
     while (42) {
         if (txstate.next_symbol == -NO_SYMBOL) {
             if (txpos == -1)
@@ -93,8 +105,18 @@ int main(void) {
                 txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
             txpos++;
-            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0]))
+            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
                 txpos = -1;
+
+                i++;
+                if (i == 2) {
+                    //txbuf[2] = random();
+                    //txbuf[2] <<= 1;
+                    //if (!txbuf[2] & 0xff)
+                    //    txbuf[2] = 0x01;
+                    i = 0;
+                }
+            }
         }
     }
 }

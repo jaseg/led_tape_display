@@ -26,6 +26,23 @@ void TIM1_BRK_UP_TRG_COM_Handler() {
     TIM1->SR &= ~TIM_SR_UIF_Msk;
 }
 
+uint8_t out_state = 0x01;
+void set_outputs(uint8_t val[8]) {
+    /* TODO implement BCM for digital brightness control */
+    int x = 0;
+    for (int i=0; i<8; i++)
+        if (val[i] > 127)
+            x |= 1<<i;
+    out_state = x;
+}
+
+void set_outputs_binary(int mask, int global_brightness) {
+    uint8_t val[8];
+    for (int i=0; i<8; i++)
+        val[i] = (mask & (1<<i)) ? global_brightness : 0;
+    set_outputs(val);
+}
+
 int main(void) {
     RCC->CR |= RCC_CR_HSEON;
     while (!(RCC->CR&RCC_CR_HSERDY));
@@ -62,64 +79,35 @@ int main(void) {
         | (2<<GPIO_OSPEEDR_OSPEEDR6_Pos)   /* CH2 */
         | (2<<GPIO_OSPEEDR_OSPEEDR7_Pos);  /* CH1 */
 
-    void set_outputs(uint8_t val) {
+    void set_drv_gpios(uint8_t val) {
         int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
         GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
         GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
     }
-    set_outputs(0);
+    set_drv_gpios(0);
 
 	adc_configure_monitor_mode(0 /*no oversampling*/, 50 /*us*/, 10000/20 /*mean window size*/);
     /* FIXME DEBUG */
     //adc_configure_scope_mode(MASK_VMEAS_A, 50000);
 
-    uint8_t out_state = 0x01;
-#define DEBOUNCE 100
     int debounce_ctr = 0;
     int val_last = 0;
-    int ctr = 0;
-#define RESET 1000
     int reset_ctr = 0;
     while (42) {
-#define FOO 500000
         if (reset_ctr)
             reset_ctr--;
         else
-            set_outputs(0);
+            set_drv_gpios(0);
 
-        if (debounce_ctr) {
-            debounce_ctr--;
-        } else {
-            int val = !!(GPIOA->IDR & 1);
-            debounce_ctr = DEBOUNCE;
-
-            if (val != val_last) {
-                if (val)
-                    set_outputs(out_state & 0xf);
-                else
-                    set_outputs(out_state >> 4);
-                reset_ctr = RESET;
-                val_last = val;
-                ctr++;
-
-                if (ctr == 100) {
-                    ctr = 0;
-                    out_state = out_state<<1 | out_state>>7;
-                }
-            }
+        int val = adc_state.detector.bit;
+        if (val != val_last) {
+            if (val)
+                set_drv_gpios(out_state & 0xf);
+            else
+                set_drv_gpios(out_state >> 4);
+            reset_ctr = 500;
+            val_last = val;
         }
-        /*
-        for (int i=0; i<FOO; i++) ;
-        set_outputs(0x1);
-        for (int i=0; i<FOO; i++) ;
-        set_outputs(0x2);
-        for (int i=0; i<FOO; i++) ;
-        set_outputs(0x4);
-        for (int i=0; i<FOO; i++) ;
-        set_outputs(0x8);
-        */
-        //for (int i=0; i<8*FOO; i++) ;
-        //GPIOA->ODR ^= 4;
     }
 }
 

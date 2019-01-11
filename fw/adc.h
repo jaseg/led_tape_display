@@ -56,6 +56,15 @@ enum adc_channels {
     NCH
 };
 
+enum packet_type {
+    PKT_TYPE_RESERVED = 0,
+    PKT_TYPE_SET_OUTPUTS_BINARY = 1,
+    PKT_TYPE_SET_GLOBAL_BRIGHTNESS = 2,
+    PKT_TYPE_SET_OUTPUTS = 3,
+    PKT_TYPE_MAX,
+    PKT_TYPE_BULK_FLAG = 0x80
+};
+
 struct adc_state {
 	enum adc_mode adc_mode;
 	int adc_oversampling;
@@ -63,7 +72,7 @@ struct adc_state {
 	struct {
 		int hysteresis_mv;
 		int debounce_cycles;
-		int symbol;
+        int sync;
 		int base_interval_cycles;
 		/* private stuff */
 		int bit;
@@ -71,7 +80,17 @@ struct adc_state {
 		int committed_len_ctr;
 		int debounce_ctr;
 		struct state_8b10b_dec rx8b10b;
+        int dma_isr_duration;
 	} detector;
+    struct {
+        int packet_type;
+        int is_bulk;
+        int rxpos;
+        int global_brightness;
+        int address;
+        uint8_t argbuf[8];
+        int offset;
+    } receiver;
 
 	/* private stuff */
 	int ovs_count; /* oversampling accumulator sample count */
@@ -87,5 +106,8 @@ extern volatile struct adc_measurements adc_data;
 void adc_init(void);
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
 void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate_len);
+
+void set_outputs(uint8_t val[8]);
+void set_outputs_binary(int mask, int global_brightness);
 
 #endif/*__ADC_H__*/
