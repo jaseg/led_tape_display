@@ -96,12 +96,10 @@ void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us) {
     st.det_st.base_interval_cycles = 10;
 
 	st.det_st.sync = 0;
-    st.det_st.rx_st.rxpos = -1;
-    st.det_st.rx_st.address = 5; /* FIXME debug code */
 	st.det_st.last_bit = 0;
 	st.det_st.committed_len_ctr = st.det_st.len_ctr = 0;
-    st.det_st.rx_st.cmd_if = cmd_if;
 	xfr_8b10b_reset((struct state_8b10b_dec *)&st.det_st.rx8b10b);
+    reset_receiver((struct proto_rx_st *)&st.det_st.rx_st, cmd_if);
 
 	adc_dma_init(NCH, true);
 
@@ -219,7 +217,7 @@ void bit_detector(struct bit_detector_st *st, int a) {
 
     } else if (st->len_ctr >= st->committed_len_ctr) {
         st->committed_len_ctr += st->base_interval_cycles;
-        receive_bit(&st->rx_st, st->last_bit);
+        receive_bit(st, st->last_bit);
     }
 }
 
@@ -251,7 +249,7 @@ void DMA1_Channel1_IRQHandler(void) {
     const long vmeas_r_total = VMEAS_R_HIGH + VMEAS_R_LOW;
     //int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*(vmeas_r_total * vcc / VMEAS_R_LOW)) >> 12;
     int a = adc_data.adc_vmeas_a_mv = (adc_buf[VMEAS_A]*13300) >> 12;
-    bit_detector(&st.det_st, a);
+    bit_detector((struct bit_detector_st *)&st.det_st, a);
 
     /* ISR timing measurement for debugging */
     int end = SysTick->VAL;

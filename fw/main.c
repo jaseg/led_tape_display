@@ -37,7 +37,7 @@ enum packet_type {
 struct {
     struct command_if_def cmd_if;
     int payload_len[PKT_TYPE_MAX];
-} cmd_if = {{PKT_TYPE_MAX}, {
+} cmd_if = {{.packet_type_max=PKT_TYPE_MAX}, {
     [PKT_TYPE_RESERVED] = 0,
     [PKT_TYPE_SET_OUTPUTS_BINARY] = 1,
     [PKT_TYPE_SET_GLOBAL_BRIGHTNESS] = 1,

@@ -1,7 +1,7 @@
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 
-#include "global.h"
+#include <stdint.h>
 
 #define PKT_TYPE_BULK_FLAG 0x80
 
@@ -24,5 +24,6 @@ struct command_if_def {
 void handle_command(int command, uint8_t *args);
 
 void receive_symbol(struct proto_rx_st *st, int symbol);
+void reset_receiver(struct proto_rx_st *st, struct command_if_def *cmd_if);
 
 #endif

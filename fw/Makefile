@@ -92,6 +92,9 @@ program: main.elf openocd.cfg
 8b10b_test_decode: 8b10b_test_decode.c 8b10b.c
 	gcc -o $@ $^
 
+protocol_test: protocol.c protocol_test.c
+	gcc -o $@ -O0 -Wall -Wextra -g -I../common $^
+
 clean:
 	rm -f **.o
 	rm -f main.elf main.hex main.bin main.map main.lst
@@ -101,4 +104,5 @@ clean:
 	rm -f sources.tar.xz.zip
 	rm -f sources.c
 	rm -f *.dot
+	rm -f protocol_test
 
