@@ -35,7 +35,7 @@ void send_test_command_single(struct test_cmd_if *cmd_if, struct proto_rx_st *st
     receive_symbol(st, -K28_1);
     receive_symbol(st, cmd);
     receive_symbol(st, address);
-    for (int i=0; i<cmd_if->payload_len[i]; i++)
+    for (int i=0; i<cmd_if->payload_len[cmd]; i++)
         receive_symbol(st, pattern[i]);
 }
 
@@ -57,7 +57,6 @@ void test_commands_with_pattern(struct test_cmd_if *cmd_if, unsigned char patter
 
     for (int cmd=0; cmd<cmd_if->cmd_if.packet_type_max; cmd++) {
         /* Addresssed tests */
-        /*
         reset_receiver(&st, &cmd_if->cmd_if);
         st.address = 23;
         handler_state.ncalls = 0;
@@ -79,7 +78,6 @@ void test_commands_with_pattern(struct test_cmd_if *cmd_if, unsigned char patter
         assert(handler_state.ncalls == 1);
         assert(handler_state.last_cmd == cmd);
         assert(!memcmp(handler_state.last_args, pattern, cmd_if->payload_len[cmd]));
-        */
 
         /* Bulk test */
         reset_receiver(&st, &cmd_if->cmd_if);
