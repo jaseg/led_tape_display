@@ -109,7 +109,7 @@ unsigned char random() {
                 txpos = -1;
 
                 i++;
-                if (i == 2) {
+                if (i == 5) {
                     //txbuf[2] = random();
                     //txbuf[2] <<= 1;
                     //if (!txbuf[2] & 0xff)

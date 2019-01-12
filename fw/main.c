@@ -26,6 +26,24 @@ void TIM1_BRK_UP_TRG_COM_Handler() {
     TIM1->SR &= ~TIM_SR_UIF_Msk;
 }
 
+enum packet_type {
+    PKT_TYPE_RESERVED = 0,
+    PKT_TYPE_SET_OUTPUTS_BINARY = 1,
+    PKT_TYPE_SET_GLOBAL_BRIGHTNESS = 2,
+    PKT_TYPE_SET_OUTPUTS = 3,
+    PKT_TYPE_MAX
+};
+
+struct {
+    struct command_if_def cmd_if;
+    int payload_len[PKT_TYPE_MAX];
+} cmd_if = {{PKT_TYPE_MAX}, {
+    [PKT_TYPE_RESERVED] = 0,
+    [PKT_TYPE_SET_OUTPUTS_BINARY] = 1,
+    [PKT_TYPE_SET_GLOBAL_BRIGHTNESS] = 1,
+    [PKT_TYPE_SET_OUTPUTS] = 8 }
+};
+
 uint8_t out_state = 0x01;
 void set_outputs(uint8_t val[8]) {
     /* TODO implement BCM for digital brightness control */
@@ -41,6 +59,23 @@ void set_outputs_binary(int mask, int global_brightness) {
     for (int i=0; i<8; i++)
         val[i] = (mask & (1<<i)) ? global_brightness : 0;
     set_outputs(val);
+}
+
+void handle_command(int command, uint8_t *args) {
+    static int global_brightness = 0xff;
+    switch (command) {
+        case PKT_TYPE_SET_OUTPUTS_BINARY:
+            set_outputs_binary(args[0], global_brightness);
+            break;
+
+        case PKT_TYPE_SET_GLOBAL_BRIGHTNESS:
+            global_brightness = args[0];
+            break;
+
+        case PKT_TYPE_SET_OUTPUTS:
+            set_outputs(args);
+            break;
+    }
 }
 
 int main(void) {
@@ -60,8 +95,8 @@ int main(void) {
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
     GPIOA->MODER |=
-          (3<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A to ADC */
-        | (3<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B to ADC */
+          (0<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A to ADC */
+        | (0<<GPIO_MODER_MODER1_Pos)  /* PA1  - Vmeas_B to ADC */
         | (1<<GPIO_MODER_MODER2_Pos)  /* PA2  - LOAD */
         | (1<<GPIO_MODER_MODER3_Pos)  /* PA3  - CH0 */
         | (1<<GPIO_MODER_MODER4_Pos)  /* PA4  - CH3 */
@@ -86,9 +121,7 @@ int main(void) {
     }
     set_drv_gpios(0);
 
-	adc_configure_monitor_mode(0 /*no oversampling*/, 50 /*us*/, 10000/20 /*mean window size*/);
-    /* FIXME DEBUG */
-    //adc_configure_scope_mode(MASK_VMEAS_A, 50000);
+	adc_configure_monitor_mode(&cmd_if.cmd_if, 50 /*us*/);
 
     int debounce_ctr = 0;
     int val_last = 0;
@@ -99,7 +132,7 @@ int main(void) {
         else
             set_drv_gpios(0);
 
-        int val = adc_state.detector.bit;
+        int val = adc_state.det_st.last_bit;
         if (val != val_last) {
             if (val)
                 set_drv_gpios(out_state & 0xf);

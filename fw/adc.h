@@ -20,6 +20,7 @@
 
 #include "global.h"
 #include "8b10b.h"
+#include "protocol.h"
 
 struct adc_measurements {
     int16_t adc_vcc_mv;
@@ -56,44 +57,23 @@ enum adc_channels {
     NCH
 };
 
-enum packet_type {
-    PKT_TYPE_RESERVED = 0,
-    PKT_TYPE_SET_OUTPUTS_BINARY = 1,
-    PKT_TYPE_SET_GLOBAL_BRIGHTNESS = 2,
-    PKT_TYPE_SET_OUTPUTS = 3,
-    PKT_TYPE_MAX,
-    PKT_TYPE_BULK_FLAG = 0x80
+struct bit_detector_st {
+    int hysteresis_mv;
+    int sync;
+    int base_interval_cycles;
+    struct proto_rx_st rx_st;
+    /* private stuff */
+    int last_bit;
+    int len_ctr;
+    int committed_len_ctr;
+    struct state_8b10b_dec rx8b10b;
 };
 
 struct adc_state {
 	enum adc_mode adc_mode;
-	int adc_oversampling;
-	int mean_aggregate_len;
-	struct {
-		int hysteresis_mv;
-		int debounce_cycles;
-        int sync;
-		int base_interval_cycles;
-		/* private stuff */
-		int bit;
-		int len_ctr;
-		int committed_len_ctr;
-		int debounce_ctr;
-		struct state_8b10b_dec rx8b10b;
-        int dma_isr_duration;
-	} detector;
-    struct {
-        int packet_type;
-        int is_bulk;
-        int rxpos;
-        int global_brightness;
-        int address;
-        uint8_t argbuf[8];
-        int offset;
-    } receiver;
-
+    int dma_isr_duration;
+    struct bit_detector_st det_st;
 	/* private stuff */
-	int ovs_count; /* oversampling accumulator sample count */
 	uint32_t adc_aggregate[NCH]; /* oversampling accumulator */
 	uint32_t mean_aggregate_ctr;
 	uint32_t mean_aggregator[3];
@@ -105,9 +85,9 @@ extern volatile struct adc_measurements adc_data;
 
 void adc_init(void);
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
-void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate_len);
+void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us);
 
-void set_outputs(uint8_t val[8]);
-void set_outputs_binary(int mask, int global_brightness);
+void bit_detector(struct bit_detector_st *st, int a);
+void receive_bit(struct bit_detector_st *st, int bit);
 
 #endif/*__ADC_H__*/

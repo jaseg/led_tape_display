@@ -31,6 +31,7 @@ static void adc_dma_init(int burstlen, bool enable_interrupt);
 static void adc_timer_init(int psc, int ivl);
 
 
+/* Mode that can be used for debugging */
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	/* The constant SAMPLE_FAST (0) when passed in as sampling_interval_ns is handled specially in that we turn the ADC
 	to continuous mode to get the highest possible sampling rate. */
@@ -76,7 +77,8 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	adc_timer_init(12/*250ns/tick*/, cycles);
 }
 
-void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate_len) {
+/* Regular operation receiver mode */
+void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us) {
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
@@ -85,25 +87,21 @@ void adc_configure_monitor_mode(int oversampling, int ivl_us, int mean_aggregate
 	/* keep track of current mode in global variable */
 	st.adc_mode = ADC_MONITOR;
 
-	//st.adc_oversampling = oversampling;
-	//st.ovs_count = 0;
 	for (int i=0; i<NCH; i++)
 		st.adc_aggregate[i] = 0;
 	st.mean_aggregator[0] = st.mean_aggregator[1] = st.mean_aggregator[2] = 0; 
 	st.mean_aggregate_ctr = 0;
 
-    st.detector.hysteresis_mv = 6000;
-    st.detector.debounce_cycles = 0;
-    st.detector.base_interval_cycles = 10;
+    st.det_st.hysteresis_mv = 6000;
+    st.det_st.base_interval_cycles = 10;
 
-	st.detector.sync = 0;
-    st.receiver.rxpos = -1;
-    st.receiver.address = 5; /* FIXME debug code */
-    st.receiver.global_brightness = 0xff;
-	st.detector.bit = 0;
-	st.detector.committed_len_ctr = st.detector.len_ctr = 0;
-	st.detector.debounce_ctr = 0;
-	xfr_8b10b_reset((struct state_8b10b_dec *)&st.detector.rx8b10b);
+	st.det_st.sync = 0;
+    st.det_st.rx_st.rxpos = -1;
+    st.det_st.rx_st.address = 5; /* FIXME debug code */
+	st.det_st.last_bit = 0;
+	st.det_st.committed_len_ctr = st.det_st.len_ctr = 0;
+    st.det_st.rx_st.cmd_if = cmd_if;
+	xfr_8b10b_reset((struct state_8b10b_dec *)&st.det_st.rx8b10b);
 
 	adc_dma_init(NCH, true);
 
@@ -172,84 +170,23 @@ static void adc_timer_init(int psc, int ivl) {
 static void gdb_dump(void) {
 }
 
-int payload_len[PKT_TYPE_MAX] = {
-    [PKT_TYPE_RESERVED] = 0,
-    [PKT_TYPE_SET_OUTPUTS_BINARY] = 1,
-    [PKT_TYPE_SET_GLOBAL_BRIGHTNESS] = 1,
-    [PKT_TYPE_SET_OUTPUTS] = 8 };
-
-void handle_command(int command, uint8_t *args) {
-    switch (command) {
-        case PKT_TYPE_SET_OUTPUTS_BINARY:
-            set_outputs_binary(args[0], st.receiver.global_brightness);
-            break;
-
-        case PKT_TYPE_SET_GLOBAL_BRIGHTNESS:
-            st.receiver.global_brightness = args[0];
-            break;
-
-        case PKT_TYPE_SET_OUTPUTS:
-            set_outputs(args);
-            break;
-    }
-}
-
-void receive_symbol(int symbol) {
-    if (symbol == -K28_1) { /* Comma/frame delimiter */
-        st.receiver.rxpos = 0;
-        /* Fall through and return and just ignore incomplete packets */
-
-    } else if (symbol == -DECODING_ERROR) {
-        st.receiver.rxpos = -1;
-
-    } else if (symbol < 0) { /* Unknown comma symbol or error */
-        st.receiver.rxpos = -1;
-
-    } else if (st.receiver.rxpos == -1) {
-        return;
-
-    } else if (st.receiver.rxpos == 0) { /* First data symbol, and not an error or comma symbol */
-        st.receiver.packet_type = symbol & ~PKT_TYPE_BULK_FLAG;
-        if (st.receiver.packet_type >= PKT_TYPE_MAX) {
-            st.receiver.rxpos = -1;
-            return;
-        }
-
-        st.receiver.is_bulk = symbol & PKT_TYPE_BULK_FLAG;
-        st.receiver.offset = (st.receiver.is_bulk) ? st.receiver.address*payload_len[st.receiver.packet_type]+1 : 2;
-        st.receiver.rxpos++;
-
-    } else if (!st.receiver.is_bulk && st.receiver.rxpos == 1) {
-        st.receiver.rxpos = (symbol == st.receiver.address) ? 2 : -1;
-
-    } else {
-        st.receiver.argbuf[st.receiver.rxpos - st.receiver.offset] = symbol;
-        st.receiver.rxpos++;
-
-        if (st.receiver.rxpos - st.receiver.offset == payload_len[st.receiver.packet_type]) {
-            handle_command(st.receiver.packet_type, (uint8_t *)st.receiver.argbuf);
-            st.receiver.rxpos = -1;
-        }
-    }
-}
-
-void receive_bit(int bit) {
-    int symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st.detector.rx8b10b, bit);
+void receive_bit(struct bit_detector_st *st, int bit) {
+    int symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st->rx8b10b, bit);
     if (symbol == -K28_1)
-        st.detector.sync = 1;
+        st->sync = 1;
 
     if (symbol == -DECODING_IN_PROGRESS)
         return;
 
     if (symbol == -DECODING_ERROR)
-        st.detector.sync = 0;
+        st->sync = 0;
         /* Fall through so we also pass the error to receive_symbol */
 
-    receive_symbol(symbol);
+    receive_symbol(&st->rx_st, symbol);
 
     /* Debug scope logic */
     static int debug_buf_pos = 0;
-    if (st.detector.sync && symbol != -DECODING_IN_PROGRESS) {
+    if (st->sync) {
         if (debug_buf_pos < NCH) {
                 debug_buf_pos = NCH;
         } else {
@@ -257,7 +194,7 @@ void receive_bit(int bit) {
 
             if (debug_buf_pos >= sizeof(adc_buf)/sizeof(adc_buf[0])) {
                 debug_buf_pos = 0;
-                st.detector.sync = 0;
+                st->sync = 0;
                 gdb_dump();
                 for (int i=0; i<sizeof(adc_buf)/sizeof(adc_buf[0]); i++)
                     adc_buf[i] = -255;
@@ -266,7 +203,28 @@ void receive_bit(int bit) {
     }
 }
 
+void bit_detector(struct bit_detector_st *st, int a) {
+    int new_bit = st->last_bit;
+    int diff = a-5500;
+    if (diff < - st->hysteresis_mv/2)
+        new_bit = 0;
+    else if (diff > st->hysteresis_mv/2)
+        new_bit = 1;
+
+    st->len_ctr++;
+    if (new_bit != st->last_bit) {
+        st->last_bit = new_bit;
+        st->len_ctr = 0;
+        st->committed_len_ctr = st->base_interval_cycles>>1;
+
+    } else if (st->len_ctr >= st->committed_len_ctr) {
+        st->committed_len_ctr += st->base_interval_cycles;
+        receive_bit(&st->rx_st, st->last_bit);
+    }
+}
+
 void DMA1_Channel1_IRQHandler(void) {
+    /* ISR timing measurement for debugging */
     int start = SysTick->VAL;
 
     /* Clear the interrupt flag */
@@ -293,31 +251,13 @@ void DMA1_Channel1_IRQHandler(void) {
     const long vmeas_r_total = VMEAS_R_HIGH + VMEAS_R_LOW;
     //int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*(vmeas_r_total * vcc / VMEAS_R_LOW)) >> 12;
     int a = adc_data.adc_vmeas_a_mv = (adc_buf[VMEAS_A]*13300) >> 12;
-
-    int new_bit = st.detector.bit;
-    int diff = a-5500;
-    if (diff < - st.detector.hysteresis_mv/2)
-        new_bit = 0;
-    else if (diff > st.detector.hysteresis_mv/2)
-        new_bit = 1;
-
-    if (new_bit != st.detector.bit) {
-        st.detector.bit = new_bit;
-        st.detector.len_ctr = 0;
-        st.detector.committed_len_ctr = st.detector.base_interval_cycles>>1;
-
-    } else if (st.detector.len_ctr >= st.detector.committed_len_ctr) {
-        st.detector.committed_len_ctr += st.detector.base_interval_cycles;
-        receive_bit(st.detector.bit);
-    }
-
-    st.detector.len_ctr++;
+    bit_detector(&st.det_st, a);
 
     /* ISR timing measurement for debugging */
     int end = SysTick->VAL;
     int tdiff = start - end;
     if (tdiff < 0)
         tdiff += SysTick->LOAD;
-    st.detector.dma_isr_duration = tdiff;
+    st.dma_isr_duration = tdiff;
 }
 
