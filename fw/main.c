@@ -44,6 +44,12 @@ struct {
     [PKT_TYPE_SET_OUTPUTS] = 8 }
 };
 
+void set_drv_gpios(uint8_t val) {
+    int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
+    GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
+    GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
+}
+
 uint8_t out_state = 0x01;
 void set_outputs(uint8_t val[8]) {
     /* TODO implement BCM for digital brightness control */
@@ -59,6 +65,46 @@ void set_outputs_binary(int mask, int global_brightness) {
     for (int i=0; i<8; i++)
         val[i] = (mask & (1<<i)) ? global_brightness : 0;
     set_outputs(val);
+}
+
+void blank(void) {
+    set_drv_gpios(0);
+}
+
+int bit; /* FIXME */
+void unblank(int new_bit) {
+    bit = new_bit;
+    NVIC_EnableIRQ(TIM3_IRQn);
+    NVIC_SetPriority(TIM3_IRQn, 3<<5);
+
+    TIM3->DIER &= (~TIM_DIER_UIE) & (~TIM_DIER_CC4IE);
+
+    TIM3->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 to get a clean trigger signal */
+    TIM3->CCER  = TIM_CCER_CC4E; /* Enable capture/compare unit 4 connected to ADC */
+
+    TIM3->CCR4  = 50; /* Trigger towards start of timer cycle */
+    TIM3->PSC   = 48-1;
+    TIM3->ARR   = 400-1;
+
+    TIM3->EGR  |= TIM_EGR_UG;
+    TIM3->CR1   = TIM_CR1_ARPE | TIM_CR1_OPM;
+    TIM3->SR &= (~TIM_SR_UIF) & (~TIM_SR_CC4IF);
+    TIM3->DIER |= TIM_DIER_UIE | TIM_DIER_CC4IE;
+
+    TIM3->CR1  |= TIM_CR1_CEN;
+}
+
+void TIM3_IRQHandler(void) {
+    if (TIM3->SR & TIM_SR_UIF) {
+        blank();
+    } else {
+        if (bit)
+            set_drv_gpios(out_state & 0xf);
+        else
+            set_drv_gpios(out_state >> 4);
+    }
+
+    TIM3->SR = 0;
 }
 
 void handle_command(int command, uint8_t *args) {
@@ -114,33 +160,12 @@ int main(void) {
         | (2<<GPIO_OSPEEDR_OSPEEDR6_Pos)   /* CH2 */
         | (2<<GPIO_OSPEEDR_OSPEEDR7_Pos);  /* CH1 */
 
-    void set_drv_gpios(uint8_t val) {
-        int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
-        GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
-        GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
-    }
     set_drv_gpios(0);
 
 	adc_configure_monitor_mode(&cmd_if.cmd_if, 50 /*us*/);
 
-    int debounce_ctr = 0;
-    int val_last = 0;
-    int reset_ctr = 0;
     while (42) {
-        if (reset_ctr)
-            reset_ctr--;
-        else
-            set_drv_gpios(0);
-
-        int val = adc_state.det_st.last_bit;
-        if (val != val_last) {
-            if (val)
-                set_drv_gpios(out_state & 0xf);
-            else
-                set_drv_gpios(out_state >> 4);
-            reset_ctr = 500;
-            val_last = val;
-        }
+        /* idle */
     }
 }
 

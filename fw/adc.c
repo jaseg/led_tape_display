@@ -140,7 +140,7 @@ static void adc_dma_init(int burstlen, bool enable_interrupt) {
 	if (enable_interrupt) {
 		/* triggered on transfer completion. We use this to process the ADC data */
 		NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-		NVIC_SetPriority(DMA1_Channel1_IRQn, 3<<5);
+		NVIC_SetPriority(DMA1_Channel1_IRQn, 2<<5);
 	} else {
 		NVIC_DisableIRQ(DMA1_Channel1_IRQn);
 		DMA1->IFCR |= DMA_IFCR_CGIF1;
@@ -208,12 +208,15 @@ void bit_detector(struct bit_detector_st *st, int a) {
         new_bit = 0;
     else if (diff > st->hysteresis_mv/2)
         new_bit = 1;
+    else
+        blank();
 
     st->len_ctr++;
     if (new_bit != st->last_bit) {
         st->last_bit = new_bit;
         st->len_ctr = 0;
         st->committed_len_ctr = st->base_interval_cycles>>1;
+        unblank(new_bit);
 
     } else if (st->len_ctr >= st->committed_len_ctr) {
         st->committed_len_ctr += st->base_interval_cycles;

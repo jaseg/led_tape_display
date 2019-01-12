@@ -90,4 +90,7 @@ void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us);
 void bit_detector(struct bit_detector_st *st, int a);
 void receive_bit(struct bit_detector_st *st, int bit);
 
+void blank(void);
+void unblank(int new_bit);
+
 #endif/*__ADC_H__*/
