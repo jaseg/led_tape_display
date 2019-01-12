@@ -10,7 +10,8 @@
 #include "protocol.h"
 #include "8b10b.h"
 
-int urandom_fd = -1;
+static int urandom_fd = -1;
+static long long n_tests = 0;
 
 struct test_cmd_if {
     struct command_if_def cmd_if;
@@ -32,6 +33,7 @@ void handle_command(int command, uint8_t *args) {
 }
 
 void send_test_command_single(struct test_cmd_if *cmd_if, struct proto_rx_st *st, int cmd, int address, unsigned char pattern[256]) {
+    n_tests++;
     receive_symbol(st, -K28_1);
     receive_symbol(st, cmd);
     receive_symbol(st, address);
@@ -40,6 +42,7 @@ void send_test_command_single(struct test_cmd_if *cmd_if, struct proto_rx_st *st
 }
 
 void send_test_command_bulk(struct test_cmd_if *cmd_if, struct proto_rx_st *st, int cmd, int index, int len, unsigned char pattern[256]) {
+    n_tests++;
     receive_symbol(st, -K28_1);
     receive_symbol(st, cmd | PKT_TYPE_BULK_FLAG);
     for (int j=0; j<len; j++) {
@@ -154,4 +157,6 @@ int main(void) {
     }
 
     assert(!close(urandom_fd));
+
+    printf("Successfully ran %lld tests\n", n_tests);
 }
