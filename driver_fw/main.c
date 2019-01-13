@@ -70,7 +70,7 @@ int main(void) {
     TIM1->BDTR = TIM_BDTR_MOE | (0xc0 | (63-32))<<TIM_BDTR_DTG_Pos; /* Enable MOE on next update event, i.e. on initial timer load.
                                                           Set dead-time to 100us. */
     TIM1->CR1 |= TIM_CR1_CEN;
-    TIM1->ARR = 1000-1; /* Set f=1.0kHz/T=1.0ms */
+    TIM1->ARR = 400-1; /* Set f=2.5kHz/T=0.4ms */
 
     xfr_8b10b_encode_reset(&txstate.st);
     txstate.current_symbol = txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;

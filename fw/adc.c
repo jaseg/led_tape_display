@@ -180,9 +180,12 @@ void receive_bit(struct bit_detector_st *st, int bit) {
         st->sync = 0;
         /* Fall through so we also pass the error to receive_symbol */
 
+    GPIOA->BSRR = 1<<9;
     receive_symbol(&st->rx_st, symbol);
+    GPIOA->BRR = 1<<9;
 
     /* Debug scope logic */
+    /*
     static int debug_buf_pos = 0;
     if (st->sync) {
         if (debug_buf_pos < NCH) {
@@ -199,6 +202,7 @@ void receive_bit(struct bit_detector_st *st, int bit) {
             }
         }
     }
+    */
 }
 
 void bit_detector(struct bit_detector_st *st, int a) {
@@ -216,7 +220,6 @@ void bit_detector(struct bit_detector_st *st, int a) {
         st->last_bit = new_bit;
         st->len_ctr = 0;
         st->committed_len_ctr = st->base_interval_cycles>>1;
-        unblank(new_bit);
 
     } else if (st->len_ctr >= st->committed_len_ctr) {
         st->committed_len_ctr += st->base_interval_cycles;
@@ -225,8 +228,9 @@ void bit_detector(struct bit_detector_st *st, int a) {
 }
 
 void DMA1_Channel1_IRQHandler(void) {
+    GPIOA->BSRR = 1<<5;
     /* ISR timing measurement for debugging */
-    int start = SysTick->VAL;
+    //int start = SysTick->VAL;
 
     /* Clear the interrupt flag */
     DMA1->IFCR |= DMA_IFCR_CGIF1;
@@ -255,10 +259,13 @@ void DMA1_Channel1_IRQHandler(void) {
     bit_detector((struct bit_detector_st *)&st.det_st, a);
 
     /* ISR timing measurement for debugging */
+    /*
     int end = SysTick->VAL;
     int tdiff = start - end;
     if (tdiff < 0)
         tdiff += SysTick->LOAD;
     st.dma_isr_duration = tdiff;
+    */
+    GPIOA->BRR = 1<<5;
 }
 

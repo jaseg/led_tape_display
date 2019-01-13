@@ -71,40 +71,28 @@ void blank(void) {
     set_drv_gpios(0);
 }
 
-int bit; /* FIXME */
+volatile int bit; /* FIXME */
+void unblank_low(void) {
+    if (bit)
+        set_drv_gpios(out_state & 0xf);
+    else
+        set_drv_gpios(out_state >> 4);
+}
+
 void unblank(int new_bit) {
     bit = new_bit;
-    NVIC_EnableIRQ(TIM3_IRQn);
-    NVIC_SetPriority(TIM3_IRQn, 3<<5);
-
-    TIM3->DIER &= (~TIM_DIER_UIE) & (~TIM_DIER_CC4IE);
-
-    TIM3->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 to get a clean trigger signal */
-    TIM3->CCER  = TIM_CCER_CC4E; /* Enable capture/compare unit 4 connected to ADC */
-
-    TIM3->CCR4  = 50; /* Trigger towards start of timer cycle */
-    TIM3->PSC   = 48-1;
-    TIM3->ARR   = 400-1;
-
-    TIM3->EGR  |= TIM_EGR_UG;
-    TIM3->CR1   = TIM_CR1_ARPE | TIM_CR1_OPM;
-    TIM3->SR &= (~TIM_SR_UIF) & (~TIM_SR_CC4IF);
-    TIM3->DIER |= TIM_DIER_UIE | TIM_DIER_CC4IE;
-
-    TIM3->CR1  |= TIM_CR1_CEN;
+    unblank_low();
 }
 
 void TIM3_IRQHandler(void) {
-    if (TIM3->SR & TIM_SR_UIF) {
+    GPIOA->BSRR = 1<<10;
+    if (TIM3->SR & TIM_SR_UIF)
+        unblank_low();
+    else
         blank();
-    } else {
-        if (bit)
-            set_drv_gpios(out_state & 0xf);
-        else
-            set_drv_gpios(out_state >> 4);
-    }
 
     TIM3->SR = 0;
+    GPIOA->BRR = 1<<10;
 }
 
 void handle_command(int command, uint8_t *args) {
@@ -133,12 +121,26 @@ int main(void) {
     while (!(RCC->CR&RCC_CR_PLLRDY));
     RCC->CFGR |= (2<<RCC_CFGR_SW_Pos);
     SystemCoreClockUpdate();
-    SysTick_Config(SystemCoreClock/1000); /* 1ms interval */
+    //SysTick_Config(SystemCoreClock/1000); /* 1ms interval */
 
     /* Turn on lots of neat things */
     RCC->AHBENR  |= RCC_AHBENR_DMAEN | RCC_AHBENR_GPIOAEN | RCC_AHBENR_FLITFEN;
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_ADCEN| RCC_APB2ENR_DBGMCUEN | RCC_APB2ENR_TIM1EN | RCC_APB2ENR_TIM1EN;;
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
+    /* TIM3 foo */
+    TIM3->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 to get a clean trigger signal */
+    TIM3->CCER  = TIM_CCER_CC4E; /* Enable capture/compare unit 4 connected to ADC */
+
+    TIM3->PSC   =  48-1;
+    TIM3->CCR4  = 170-1;
+    TIM3->ARR   = 200-1;
+
+    TIM3->DIER |= TIM_DIER_UIE | TIM_DIER_CC4IE;
+
+    TIM3->CR1  |= TIM_CR1_CEN;
+    NVIC_EnableIRQ(TIM3_IRQn);
+    NVIC_SetPriority(TIM3_IRQn, 3<<5);
 
     GPIOA->MODER |=
           (0<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vmeas_A to ADC */
@@ -146,11 +148,11 @@ int main(void) {
         | (1<<GPIO_MODER_MODER2_Pos)  /* PA2  - LOAD */
         | (1<<GPIO_MODER_MODER3_Pos)  /* PA3  - CH0 */
         | (1<<GPIO_MODER_MODER4_Pos)  /* PA4  - CH3 */
-        | (0<<GPIO_MODER_MODER5_Pos)  /* PA5  - TP1 */
+        | (1<<GPIO_MODER_MODER5_Pos)  /* PA5  - TP1 */
         | (1<<GPIO_MODER_MODER6_Pos)  /* PA6  - CH2 */
         | (1<<GPIO_MODER_MODER7_Pos)  /* PA7  - CH1 */
-        | (0<<GPIO_MODER_MODER9_Pos)  /* PA9  - TP2 */
-        | (0<<GPIO_MODER_MODER10_Pos);/* PA10 - TP3 */
+        | (1<<GPIO_MODER_MODER9_Pos)  /* PA9  - TP2 */
+        | (1<<GPIO_MODER_MODER10_Pos);/* PA10 - TP3 */
 
     /* Set shift register IO GPIO output speed */
     GPIOA->OSPEEDR |=
@@ -162,14 +164,22 @@ int main(void) {
 
     set_drv_gpios(0);
 
-	adc_configure_monitor_mode(&cmd_if.cmd_if, 50 /*us*/);
+	adc_configure_monitor_mode(&cmd_if.cmd_if, 20 /*us*/);
 
+    int old = 0;
     while (42) {
+        int new = GPIOA->IDR & (1<<0);
+        if (new != old) {
+            unblank(new);
+            TIM3->EGR  |= TIM_EGR_UG;
+            old = new;
+        }
         /* idle */
     }
 }
 
 void NMI_Handler(void) {
+    asm volatile ("bkpt");
 }
 
 void HardFault_Handler(void) __attribute__((naked));
@@ -178,10 +188,12 @@ void HardFault_Handler() {
 }
 
 void SVC_Handler(void) {
+    asm volatile ("bkpt");
 }
 
 
 void PendSV_Handler(void) {
+    asm volatile ("bkpt");
 }
 
 void SysTick_Handler(void) {
