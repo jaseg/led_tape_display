@@ -79,11 +79,6 @@ void unblank_low(void) {
         set_drv_gpios(out_state >> 4);
 }
 
-void unblank(int new_bit) {
-    bit = new_bit;
-    unblank_low();
-}
-
 void TIM3_IRQHandler(void) {
     GPIOA->BSRR = 1<<10;
     if (TIM3->SR & TIM_SR_UIF)
@@ -166,13 +161,12 @@ int main(void) {
 
 	adc_configure_monitor_mode(&cmd_if.cmd_if, 20 /*us*/);
 
-    int old = 0;
     while (42) {
         int new = GPIOA->IDR & (1<<0);
-        if (new != old) {
-            unblank(new);
+        if (new != bit) {
+            bit = new;
             TIM3->EGR  |= TIM_EGR_UG;
-            old = new;
+            unblank_low();
         }
         /* idle */
     }
