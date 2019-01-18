@@ -2344,7 +2344,7 @@ Wire Wire Line
 	17750 3750 17750 3450
 Wire Wire Line
 	17550 3450 17550 3750
-Text Label 15550 6200 0    50   ~ 0
+Text Label 15550 5900 0    50   ~ 0
 LED0
 Text Label 15550 6300 0    50   ~ 0
 LED1
@@ -2356,7 +2356,7 @@ Text Label 17850 6600 2    50   ~ 0
 LED4
 Text Label 17850 6800 2    50   ~ 0
 LED5
-Text Label 15550 6400 0    50   ~ 0
+Text Label 15550 5800 0    50   ~ 0
 LED6
 Text Label 17850 6900 2    50   ~ 0
 LED7
@@ -2369,13 +2369,7 @@ Wire Wire Line
 Wire Wire Line
 	17250 6600 17850 6600
 Wire Wire Line
-	17850 6500 17250 6500
-Wire Wire Line
-	15550 6200 15950 6200
-Wire Wire Line
 	15950 6300 15550 6300
-Wire Wire Line
-	15550 6400 15950 6400
 $Comp
 L Switch:SW_Push SW1
 U 1 1 5D5D8224
@@ -2709,4 +2703,18 @@ Text Label 18550 5800 0    50   ~ 0
 SWDIO
 Text Label 18550 5600 0    50   ~ 0
 SWCLK
+Wire Wire Line
+	17850 6500 17250 6500
+Wire Wire Line
+	15550 5800 15950 5800
+Wire Wire Line
+	15550 5900 15950 5900
+Text Label 17850 7600 2    50   ~ 0
+SWCLK
+Text Label 17850 7500 2    50   ~ 0
+SWDIO
+Wire Wire Line
+	17250 7500 17850 7500
+Wire Wire Line
+	17850 7600 17250 7600
 $EndSCHEMATC
