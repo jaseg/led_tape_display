@@ -216,8 +216,6 @@ Wire Wire Line
 	8350 5650 8450 5650
 Wire Wire Line
 	8450 5700 8450 5650
-Wire Wire Line
-	8450 5650 8550 5650
 $Comp
 L power:GND #PWR0103
 U 1 1 5C3E47F9
@@ -282,7 +280,6 @@ Wire Wire Line
 	9350 8250 9350 8500
 Wire Wire Line
 	9350 8500 6200 8500
-Connection ~ 8450 5650
 $Comp
 L Device:R_Small R21
 U 1 1 5C405205
@@ -461,10 +458,7 @@ Wire Wire Line
 Wire Wire Line
 	10150 5650 10500 5650
 Wire Wire Line
-	10150 6600 10500 6600
-Wire Wire Line
 	10500 6550 10500 6600
-Connection ~ 10500 6600
 Wire Wire Line
 	10500 6600 10600 6600
 Wire Wire Line
@@ -2615,7 +2609,7 @@ Text Label 9350 7750 1    50   ~ 0
 GND_MEAS
 Text Label 8050 5850 1    50   ~ 0
 DRV1
-Text Label 8450 5650 0    50   ~ 0
+Text Label 8450 5350 3    50   ~ 0
 DRV1F
 Text Label 8450 6600 0    50   ~ 0
 DRV3F
@@ -2717,4 +2711,18 @@ Wire Wire Line
 	17250 7500 17850 7500
 Wire Wire Line
 	17850 7600 17250 7600
+Wire Wire Line
+	10350 6600 10500 6600
+Connection ~ 10500 6600
+Text Label 8550 5350 3    50   ~ 0
+DRV4F
+Wire Wire Line
+	8550 5350 8550 5650
+Wire Wire Line
+	8450 5350 8450 5650
+Connection ~ 8450 5650
+Text Label 10150 6300 3    50   ~ 0
+DRV1F
+Wire Wire Line
+	10150 6300 10150 6600
 $EndSCHEMATC
