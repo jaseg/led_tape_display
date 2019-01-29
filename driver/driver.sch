@@ -1848,8 +1848,6 @@ Wire Wire Line
 	16550 9650 16550 9550
 Wire Wire Line
 	16550 9550 16650 9550
-Wire Wire Line
-	16500 9250 16650 9250
 $Comp
 L Device:R_Small R26
 U 1 1 5CE0D5AA
@@ -1894,12 +1892,6 @@ F 3 "~" H 16200 9050 50  0001 C CNN
 	1    16200 9050
 	1    0    0    1   
 $EndComp
-Wire Wire Line
-	16200 9350 16650 9350
-Wire Wire Line
-	16200 9150 16200 9350
-Wire Wire Line
-	16500 9150 16500 9250
 $Comp
 L power:+5V #PWR0136
 U 1 1 5CE6F025
@@ -1913,16 +1905,10 @@ F 3 "" H 16550 9450 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	16550 9450 16650 9450
-Connection ~ 16500 9250
-Connection ~ 16200 9350
 Text Label 15800 9350 0    50   ~ 0
 SDA_LCD
 Text Label 15800 9250 0    50   ~ 0
 SCL_LCD
-Wire Wire Line
-	15800 9250 16500 9250
-Wire Wire Line
-	15800 9350 16200 9350
 Text Notes 15800 9200 0    50   ~ 0
 5V LCD I2C bus
 Text Notes 11900 8300 0    50   ~ 0
@@ -2090,17 +2076,6 @@ F 3 "~" V 17550 4100 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Device:LED_Small_ALT D3
-U 1 1 5D1201FD
-P 17750 4100
-F 0 "D3" V 17850 4050 50  0000 R CNN
-F 1 "cyan" V 17705 4032 50  0001 R CNN
-F 2 "LED_SMD:LED_PLCC_2835_Handsoldering" V 17750 4100 50  0001 C CNN
-F 3 "~" V 17750 4100 50  0001 C CNN
-	1    17750 4100
-	0    -1   -1   0   
-$EndComp
-$Comp
 L Device:LED_Small_ALT D4
 U 1 1 5D120495
 P 18650 4100
@@ -2145,17 +2120,6 @@ F 3 "~" V 17950 4100 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Device:LED_Small_ALT D8
-U 1 1 5D1365C9
-P 19050 4100
-F 0 "D8" V 19150 4050 50  0000 R CNN
-F 1 "pink" V 19005 4032 50  0001 R CNN
-F 2 "LED_SMD:LED_PLCC_2835_Handsoldering" V 19050 4100 50  0001 C CNN
-F 3 "~" V 19050 4100 50  0001 C CNN
-	1    19050 4100
-	0    -1   -1   0   
-$EndComp
-$Comp
 L Device:LED_Small_ALT D9
 U 1 1 5D138D62
 P 18850 4100
@@ -2175,17 +2139,6 @@ F 1 "150" V 17450 3800 50  0000 L CNN
 F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" H 17550 3850 50  0001 C CNN
 F 3 "~" H 17550 3850 50  0001 C CNN
 	1    17550 3850
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:R_Small R12
-U 1 1 5D18C65D
-P 17750 3850
-F 0 "R12" V 17850 3900 50  0000 L CNN
-F 1 "150" V 17650 3800 50  0001 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" H 17750 3850 50  0001 C CNN
-F 3 "~" H 17750 3850 50  0001 C CNN
-	1    17750 3850
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -2243,19 +2196,6 @@ F 3 "~" H 18850 3850 50  0001 C CNN
 	1    18850 3850
 	1    0    0    -1  
 $EndComp
-$Comp
-L Device:R_Small R18
-U 1 1 5D191497
-P 19050 3850
-F 0 "R18" V 19150 3900 50  0000 L CNN
-F 1 "150" V 18950 3800 50  0001 L CNN
-F 2 "Resistor_SMD:R_0603_1608Metric_Pad1.05x0.95mm_HandSolder" H 19050 3850 50  0001 C CNN
-F 3 "~" H 19050 3850 50  0001 C CNN
-	1    19050 3850
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	19050 3950 19050 4000
 Wire Wire Line
 	18850 3950 18850 4000
 Wire Wire Line
@@ -2267,14 +2207,7 @@ Wire Wire Line
 Wire Wire Line
 	17950 3950 17950 4000
 Wire Wire Line
-	17750 4000 17750 3950
-Wire Wire Line
 	17550 3950 17550 4000
-Wire Wire Line
-	17550 4200 17750 4200
-Connection ~ 17750 4200
-Wire Wire Line
-	17750 4200 17950 4200
 Connection ~ 17950 4200
 Wire Wire Line
 	17950 4200 18150 4200
@@ -2287,9 +2220,6 @@ Wire Wire Line
 Connection ~ 18650 4200
 Wire Wire Line
 	18650 4200 18850 4200
-Connection ~ 18850 4200
-Wire Wire Line
-	18850 4200 19050 4200
 $Comp
 L power:GND #PWR0141
 U 1 1 5D29F0CD
@@ -2306,8 +2236,6 @@ Wire Wire Line
 Connection ~ 18300 4200
 Wire Wire Line
 	18300 4200 18450 4200
-Text Label 17750 3450 3    50   ~ 0
-LED1
 Text Label 17550 3450 3    50   ~ 0
 LED0
 Text Label 17950 3450 3    50   ~ 0
@@ -2320,10 +2248,6 @@ Text Label 18650 3450 3    50   ~ 0
 LED5
 Text Label 18850 3450 3    50   ~ 0
 LED6
-Text Label 19050 3450 3    50   ~ 0
-LED7
-Wire Wire Line
-	19050 3450 19050 3750
 Wire Wire Line
 	18850 3750 18850 3450
 Wire Wire Line
@@ -2335,13 +2259,9 @@ Wire Wire Line
 Wire Wire Line
 	17950 3450 17950 3750
 Wire Wire Line
-	17750 3750 17750 3450
-Wire Wire Line
 	17550 3450 17550 3750
 Text Label 15550 5900 0    50   ~ 0
 LED0
-Text Label 15550 6300 0    50   ~ 0
-LED1
 Text Label 17850 6700 2    50   ~ 0
 LED2
 Text Label 17850 6500 2    50   ~ 0
@@ -2352,42 +2272,12 @@ Text Label 17850 6800 2    50   ~ 0
 LED5
 Text Label 15550 5800 0    50   ~ 0
 LED6
-Text Label 17850 6900 2    50   ~ 0
-LED7
-Wire Wire Line
-	17850 6900 17250 6900
 Wire Wire Line
 	17250 6800 17850 6800
 Wire Wire Line
 	17850 6700 17250 6700
 Wire Wire Line
 	17250 6600 17850 6600
-Wire Wire Line
-	15950 6300 15550 6300
-$Comp
-L Switch:SW_Push SW1
-U 1 1 5D5D8224
-P 15300 8050
-F 0 "SW1" H 15500 8150 50  0000 R CNN
-F 1 "SW_Push" H 15150 8150 50  0000 R CNN
-F 2 "Button_Switch_THT:SW_PUSH_6mm" H 15300 8250 50  0001 C CNN
-F 3 "" H 15300 8250 50  0001 C CNN
-	1    15300 8050
-	0    -1   -1   0   
-$EndComp
-$Comp
-L power:GND #PWR0142
-U 1 1 5D5DDBEA
-P 15300 8450
-F 0 "#PWR0142" H 15300 8200 50  0001 C CNN
-F 1 "GND" H 15305 8277 50  0000 C CNN
-F 2 "" H 15300 8450 50  0001 C CNN
-F 3 "" H 15300 8450 50  0001 C CNN
-	1    15300 8450
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	15300 8450 15300 8250
 $Comp
 L Switch:SW_Push SW2
 U 1 1 5D6024EE
@@ -2416,14 +2306,8 @@ Wire Wire Line
 	15950 7700 15550 7700
 Wire Wire Line
 	15550 7700 15550 7850
-Wire Wire Line
-	15950 7600 15300 7600
-Wire Wire Line
-	15300 7600 15300 7850
 Text Label 15550 7700 0    50   ~ 0
 SW1
-Text Label 15550 7600 0    50   ~ 0
-SW0
 $Comp
 L Sensor_Temperature:MCP9804_MSOP U8
 U 1 1 5D7751AD
@@ -2758,4 +2642,42 @@ F 3 "" H 16500 2850 50  0001 C CNN
 	1    16500 2850
 	1    0    0    -1  
 $EndComp
+$Comp
+L Mechanical:MountingHole H5
+U 1 1 5C529D2F
+P 17750 3000
+F 0 "H5" H 17850 3046 50  0000 L CNN
+F 1 "MountingHole" H 17850 2955 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17750 3000 50  0001 C CNN
+F 3 "~" H 17750 3000 50  0001 C CNN
+	1    17750 3000
+	1    0    0    -1  
+$EndComp
+$Comp
+L Mechanical:MountingHole H6
+U 1 1 5C52B98B
+P 17750 3200
+F 0 "H6" H 17850 3246 50  0000 L CNN
+F 1 "MountingHole" H 17850 3155 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17750 3200 50  0001 C CNN
+F 3 "~" H 17750 3200 50  0001 C CNN
+	1    17750 3200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	17550 4200 17950 4200
+Wire Wire Line
+	15800 9350 16500 9350
+Wire Wire Line
+	15800 9250 16200 9250
+Wire Wire Line
+	16500 9150 16500 9350
+Connection ~ 16500 9350
+Wire Wire Line
+	16500 9350 16650 9350
+Wire Wire Line
+	16200 9150 16200 9250
+Connection ~ 16200 9250
+Wire Wire Line
+	16200 9250 16650 9250
 $EndSCHEMATC
