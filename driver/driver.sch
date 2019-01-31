@@ -1692,34 +1692,6 @@ SLED3
 Text Label 19950 4600 3    50   ~ 0
 SLED4
 $Comp
-L Switch:SW_Push SW2
-U 1 1 5D6024EE
-P 20700 3850
-F 0 "SW2" H 20900 3950 50  0000 R CNN
-F 1 "SW_Push" H 20550 3950 50  0000 R CNN
-F 2 "Button_Switch_THT:SW_PUSH_6mm" H 20700 4050 50  0001 C CNN
-F 3 "" H 20700 4050 50  0001 C CNN
-	1    20700 3850
-	0    -1   -1   0   
-$EndComp
-$Comp
-L power:GND #PWR0143
-U 1 1 5D60402D
-P 20700 4300
-F 0 "#PWR0143" H 20700 4050 50  0001 C CNN
-F 1 "GND" H 20705 4127 50  0000 C CNN
-F 2 "" H 20700 4300 50  0001 C CNN
-F 3 "" H 20700 4300 50  0001 C CNN
-	1    20700 4300
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	20700 4300 20700 4050
-Wire Wire Line
-	20700 3450 20700 3650
-Text Label 20700 3450 3    50   ~ 0
-SW1
-$Comp
 L Sensor_Temperature:MCP9804_MSOP U8
 U 1 1 5D7751AD
 P 13550 8350
@@ -2728,4 +2700,48 @@ Wire Wire Line
 Connection ~ 16250 11850
 Wire Wire Line
 	16250 11850 14850 11850
+$Comp
+L Mechanical:MountingHole H5
+U 1 1 5C580F0A
+P 17400 2350
+F 0 "H5" H 17500 2396 50  0000 L CNN
+F 1 "MountingHole" H 17500 2305 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17400 2350 50  0001 C CNN
+F 3 "~" H 17400 2350 50  0001 C CNN
+	1    17400 2350
+	1    0    0    -1  
+$EndComp
+$Comp
+L Mechanical:MountingHole H6
+U 1 1 5C580F10
+P 17400 2550
+F 0 "H6" H 17500 2596 50  0000 L CNN
+F 1 "MountingHole" H 17500 2505 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17400 2550 50  0001 C CNN
+F 3 "~" H 17400 2550 50  0001 C CNN
+	1    17400 2550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Mechanical:MountingHole H7
+U 1 1 5C580F16
+P 17400 2750
+F 0 "H7" H 17500 2796 50  0000 L CNN
+F 1 "MountingHole" H 17500 2705 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17400 2750 50  0001 C CNN
+F 3 "~" H 17400 2750 50  0001 C CNN
+	1    17400 2750
+	1    0    0    -1  
+$EndComp
+$Comp
+L Mechanical:MountingHole H8
+U 1 1 5C580F1C
+P 17400 2950
+F 0 "H8" H 17500 2996 50  0000 L CNN
+F 1 "MountingHole" H 17500 2905 50  0000 L CNN
+F 2 "MountingHole:MountingHole_3.2mm_M3" H 17400 2950 50  0001 C CNN
+F 3 "~" H 17400 2950 50  0001 C CNN
+	1    17400 2950
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
