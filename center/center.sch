@@ -39,46 +39,46 @@ $EndComp
 $Comp
 L Connector_Generic:Conn_01x02 J1
 U 1 1 5C196961
-P 2500 1800
-F 0 "J1" H 2650 1750 50  0000 C CNN
-F 1 "top left" H 2420 1566 50  0000 C CNN
-F 2 "footprints:led_tape_3528_2835" H 2500 1800 50  0001 C CNN
-F 3 "~" H 2500 1800 50  0001 C CNN
-	1    2500 1800
-	-1   0    0    1   
+P 2500 1700
+F 0 "J1" H 2650 1650 50  0000 C CNN
+F 1 "top left" H 2420 1466 50  0000 C CNN
+F 2 "footprints:led_tape_3528_2835" H 2500 1700 50  0001 C CNN
+F 3 "~" H 2500 1700 50  0001 C CNN
+	1    2500 1700
+	-1   0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_01x02 J2
 U 1 1 5C196B9D
-P 2500 2200
-F 0 "J2" H 2650 2150 50  0000 C CNN
-F 1 "top right" H 2420 1966 50  0000 C CNN
-F 2 "footprints:led_tape_3528_2835" H 2500 2200 50  0001 C CNN
-F 3 "~" H 2500 2200 50  0001 C CNN
-	1    2500 2200
-	-1   0    0    1   
+P 2500 2100
+F 0 "J2" H 2650 2050 50  0000 C CNN
+F 1 "top right" H 2420 1866 50  0000 C CNN
+F 2 "footprints:led_tape_3528_2835" H 2500 2100 50  0001 C CNN
+F 3 "~" H 2500 2100 50  0001 C CNN
+	1    2500 2100
+	-1   0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_01x02 J3
 U 1 1 5C196C4D
-P 2500 2600
-F 0 "J3" H 2650 2550 50  0000 C CNN
-F 1 "bottom right" H 2420 2366 50  0000 C CNN
-F 2 "footprints:led_tape_3528_2835" H 2500 2600 50  0001 C CNN
-F 3 "~" H 2500 2600 50  0001 C CNN
-	1    2500 2600
-	-1   0    0    1   
+P 2500 2500
+F 0 "J3" H 2650 2450 50  0000 C CNN
+F 1 "bottom right" H 2420 2266 50  0000 C CNN
+F 2 "footprints:led_tape_3528_2835" H 2500 2500 50  0001 C CNN
+F 3 "~" H 2500 2500 50  0001 C CNN
+	1    2500 2500
+	-1   0    0    -1  
 $EndComp
 $Comp
 L Connector_Generic:Conn_01x02 J4
 U 1 1 5C196D8E
-P 2500 3000
-F 0 "J4" H 2650 2950 50  0000 C CNN
-F 1 "bottom left" H 2420 2766 50  0000 C CNN
-F 2 "footprints:led_tape_3528_2835" H 2500 3000 50  0001 C CNN
-F 3 "~" H 2500 3000 50  0001 C CNN
-	1    2500 3000
-	-1   0    0    1   
+P 2500 2900
+F 0 "J4" H 2650 2850 50  0000 C CNN
+F 1 "bottom left" H 2420 2666 50  0000 C CNN
+F 2 "footprints:led_tape_3528_2835" H 2500 2900 50  0001 C CNN
+F 3 "~" H 2500 2900 50  0001 C CNN
+	1    2500 2900
+	-1   0    0    -1  
 $EndComp
 $Comp
 L Device:D_Schottky D1

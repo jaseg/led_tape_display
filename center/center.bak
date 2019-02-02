@@ -1229,10 +1229,10 @@ Wire Wire Line
 Wire Wire Line
 	2600 5150 2600 5300
 $Comp
-L Transistor_FET:BSS83P Q?
+L Transistor_FET:BSS83P Q1
 U 1 1 5C577582
 P 6850 4350
-F 0 "Q?" H 7055 4396 50  0000 L CNN
+F 0 "Q1" H 7055 4396 50  0000 L CNN
 F 1 "AO3400" H 7055 4305 50  0000 L CNN
 F 2 "Package_TO_SOT_SMD:SOT-23" H 7050 4275 50  0001 L CIN
 F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 6850 4350 50  0001 L CNN
@@ -1240,10 +1240,10 @@ F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 6850 4350 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Transistor_FET:BSS83P Q?
+L Transistor_FET:BSS83P Q3
 U 1 1 5C57CF20
 P 5250 5450
-F 0 "Q?" H 5455 5496 50  0000 L CNN
+F 0 "Q3" H 5455 5496 50  0000 L CNN
 F 1 "AO3400" H 5455 5405 50  0000 L CNN
 F 2 "Package_TO_SOT_SMD:SOT-23" H 5450 5375 50  0001 L CIN
 F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 5250 5450 50  0001 L CNN
@@ -1251,10 +1251,10 @@ F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 5250 5450 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Transistor_FET:BSS83P Q?
+L Transistor_FET:BSS83P Q4
 U 1 1 5C57D930
 P 6850 5450
-F 0 "Q?" H 7055 5496 50  0000 L CNN
+F 0 "Q4" H 7055 5496 50  0000 L CNN
 F 1 "AO3400" H 7055 5405 50  0000 L CNN
 F 2 "Package_TO_SOT_SMD:SOT-23" H 7050 5375 50  0001 L CIN
 F 3 "http://www.farnell.com/datasheets/1835997.pdf" H 6850 5450 50  0001 L CNN
