@@ -2744,4 +2744,7 @@ F 3 "~" H 17400 2950 50  0001 C CNN
 	1    17400 2950
 	1    0    0    -1  
 $EndComp
+Text Notes 7600 10050 0    50   ~ 0
+TODO:\n* RS485 drv fp is wide, should be narrow SOIC-8\n* Heatsink holes are plated-through, shouln't be\n* Add thermal reliefs in upper logic ground plane\n* GND/VCC input labels are swapped
+NoConn ~ 14600 2800
 $EndSCHEMATC
