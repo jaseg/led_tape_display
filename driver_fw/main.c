@@ -51,6 +51,10 @@ enum STATUS_LEDS {
 };
 
 static void set_status_leds(uint8_t val) {
+    /* Reset strobe. Will be set in systick handler */
+    GPIOA->BRR = 1<<4;
+    //for (int i=0; i<100; i++)
+    //    asm volatile ("nop");
     /* Workaround for *nasty* hardware behavior: If SPI data width is configured as 8 bit but DR is written as 16
      * bit, SPI actually sends 16 clock cycles. Thus, we have to make sure the compiler emits a 8-bit write here.
      * Thanks, TI! */
@@ -87,6 +91,9 @@ int main(void) {
         | (2<<GPIO_MODER_MODER9_Pos)  /* PA9  - SCL */
         | (2<<GPIO_MODER_MODER10_Pos);/* PA10 - SDA */
 
+    GPIOA->OSPEEDR =
+          (3<<GPIO_OSPEEDR_OSPEEDR4_Pos);
+
     GPIOA->AFR[0] =
           (1<<GPIO_AFRL_AFSEL1_Pos)  /* PA1 */
         | (1<<GPIO_AFRL_AFSEL2_Pos)  /* PA2 */
@@ -115,24 +122,9 @@ int main(void) {
           SPI_CR1_SSM
         | SPI_CR1_SSI
         | (6<<SPI_CR1_BR_Pos)
-        | SPI_CR1_MSTR
-        | SPI_CR1_CPHA;
+        | SPI_CR1_MSTR;
     SPI1->CR1 |= SPI_CR1_SPE;
 
-    /* FIXME debug code */
-    for (;;) {
-        set_status_leds((sys_time & (1<<6)) ? STATUS_LED_OPERATION : 0);
-
-        /* Toggle strobe */
-        GPIOA->BSRR = 1<<4;
-        for (int j = 0; j<100; j++)
-            asm volatile ("nop");
-        GPIOA->BRR = 1<<4;
-
-        for (int j = 0; j<100000; j++)
-            asm volatile ("nop");
-    }
-#if 0
     /* TIM3 running off 48MHz APB1 clk, T=20.833ns */
     TIM3->CR1 = 0; /* Disable ARR preload (double-buffering) */
     TIM3->PSC = 48-1; /* Prescaler 48 -> f=1MHz/T=1us */
@@ -147,10 +139,10 @@ int main(void) {
 
     xfr_8b10b_encode_reset(&txstate.st);
     txstate.current_symbol = txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;
-    TIM1->EGR |= TIM_EGR_UG;
+    TIM3->EGR |= TIM_EGR_UG;
 
-    NVIC_EnableIRQ(TIM1_UP_IRQn);
-    NVIC_SetPriority(TIM1_UP_IRQn, 3<<4);
+    NVIC_EnableIRQ(TIM3_IRQn);
+    NVIC_SetPriority(TIM3_IRQn, 3<<4);
 
     uint8_t txbuf[3] = {0x01, 0x05, 0x01};
     int txpos = -1;
@@ -181,7 +173,6 @@ int main(void) {
             }
         }
     }
-#endif
 }
 
 int flipbits(int in) {
@@ -199,20 +190,20 @@ int flipbits(int in) {
 
 }
 
-void TIM1_UP_IRQHandler() {
-    TIM1->SR &= ~TIM_SR_UIF;
+void TIM3_IRQHandler() {
+    TIM3->SR &= ~TIM_SR_UIF;
     int sym = txstate.current_symbol;
     int bit = sym&1;
     sym >>= 1;
     if (sym == 1) { /* last bit shifted out */
         if (txstate.next_symbol == -NO_SYMBOL) /*FIXME debug code*/
-            asm volatile("bkpt");
+            //asm volatile("bkpt");
         sym = flipbits(txstate.next_symbol) | 1<<10;
         txstate.next_symbol = -NO_SYMBOL;
     }
     txstate.current_symbol = sym;
 
-    TIM1->CCR1 = bit ? 0xffff : 0x0000;
+    TIM3->CCR1 = bit ? 0xffff : 0x0000;
 }
 
 void NMI_Handler(void) {
@@ -231,7 +222,16 @@ void PendSV_Handler(void) {
 }
 
 void SysTick_Handler(void) {
+    static int bit = 0;
+    bit = !bit;
+
     sys_time++;
+
+    /* This is a hack. We could use the SPI interrupt here if that didn't fire at the start instead of end of transmission.... -.- */
+    if (bit)
+        set_status_leds((sys_time & (1<<6)) ? STATUS_LED_OPERATION : 0);
+    else
+        GPIOA->BSRR = 1<<4;
 }
 
 void _init(void) {
