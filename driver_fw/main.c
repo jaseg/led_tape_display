@@ -91,9 +91,6 @@ int main(void) {
         | (2<<GPIO_MODER_MODER9_Pos)  /* PA9  - SCL */
         | (2<<GPIO_MODER_MODER10_Pos);/* PA10 - SDA */
 
-    GPIOA->OSPEEDR =
-          (3<<GPIO_OSPEEDR_OSPEEDR4_Pos);
-
     GPIOA->AFR[0] =
           (1<<GPIO_AFRL_AFSEL1_Pos)  /* PA1 */
         | (1<<GPIO_AFRL_AFSEL2_Pos)  /* PA2 */
@@ -129,11 +126,10 @@ int main(void) {
     TIM3->CR1 = 0; /* Disable ARR preload (double-buffering) */
     TIM3->PSC = 48-1; /* Prescaler 48 -> f=1MHz/T=1us */
     TIM3->DIER = TIM_DIER_UIE; /* Enable update (overflow) interrupt */
-    TIM3->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE; /* Configure output compare unit 1 to PWM mode 1, enable CCR1
-                                                              preload */
-    TIM3->CCER = TIM_CCER_CC1NE | TIM_CCER_CC1E; /* Confiugre CH1 to complementary outputs */
-    TIM3->BDTR = TIM_BDTR_MOE | (0xc0 | (63-32))<<TIM_BDTR_DTG_Pos; /* Enable MOE on next update event, i.e. on initial timer load.
-                                                          Set dead-time to 100us. */
+    TIM3->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE; /* Configure output compare unit 1 to PWM mode 1, enable CCR1 preload */
+    TIM3->CCMR2 = 6<<TIM_CCMR2_OC4M_Pos | TIM_CCMR2_OC4PE; /* Configure output compare unit 4 to PWM mode 1, enable CCR4 preload */
+    TIM3->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P | TIM_CCER_CC4E | TIM_CCER_CC4P; /* Confiugre CH1 to complementary outputs */
+    TIM3->BDTR = TIM_BDTR_MOE; /* Enable MOE on next update event, i.e. on initial timer load. */
     TIM3->CR1 |= TIM_CR1_CEN;
     TIM3->ARR = 800-1; /* Set f=2.5kHz/T=0.4ms */
 
@@ -142,15 +138,10 @@ int main(void) {
     TIM3->EGR |= TIM_EGR_UG;
 
     NVIC_EnableIRQ(TIM3_IRQn);
-    NVIC_SetPriority(TIM3_IRQn, 3<<4);
+    NVIC_SetPriority(TIM3_IRQn, 2<<4);
 
     uint8_t txbuf[3] = {0x01, 0x05, 0x01};
     int txpos = -1;
-    /* FIXME test code */
-    //for (int i=0; i<sizeof(txbuf)/sizeof(txbuf[0]); i++)
-    //    txbuf[i] = i;
-    /* FIXME end test code */
-    int i = 0;
     while (42) {
         if (txstate.next_symbol == -NO_SYMBOL) {
             if (txpos == -1)
@@ -159,18 +150,8 @@ int main(void) {
                 txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
             txpos++;
-            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
+            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0]))
                 txpos = -1;
-
-                i++;
-                if (i == 5) {
-                    //txbuf[2] = random();
-                    //txbuf[2] <<= 1;
-                    //if (!txbuf[2] & 0xff)
-                    //    txbuf[2] = 0x01;
-                    i = 0;
-                }
-            }
         }
     }
 }
@@ -197,13 +178,15 @@ void TIM3_IRQHandler() {
     sym >>= 1;
     if (sym == 1) { /* last bit shifted out */
         if (txstate.next_symbol == -NO_SYMBOL) /*FIXME debug code*/
-            //asm volatile("bkpt");
+            asm volatile("bkpt");
         sym = flipbits(txstate.next_symbol) | 1<<10;
         txstate.next_symbol = -NO_SYMBOL;
     }
     txstate.current_symbol = sym;
 
-    TIM3->CCR1 = bit ? 0xffff : 0x0000;
+#define DEAD_TIME 100
+    TIM3->CCR1 = bit ? 0xffff : DEAD_TIME;
+    TIM3->CCR4 = bit ? DEAD_TIME : 0xffff;
 }
 
 void NMI_Handler(void) {
