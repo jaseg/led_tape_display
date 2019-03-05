@@ -1,26 +1,24 @@
 
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#include <stm32f0xx.h>
-#pragma GCC diagnostic pop
-
-#include <system_stm32f0xx.h>
-#include <stm32f0xx_ll_spi.h>
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <unistd.h>
+#include "global.h"
+#include "serial.h"
 
 #include <8b10b.h>
 
 /* Part number: STM32F030F4C6 */
 
-static volatile unsigned int sys_time;
+volatile unsigned int comm_led_ctr, err_led_ctr;
+volatile unsigned int sys_time_tick;
+volatile unsigned int sys_time_ms;
+volatile unsigned int sys_time_s;
+unsigned int frame_duration_us;
+volatile uint8_t global_brightness; /* FIXME implement sending */
 
-uint32_t get_tick() {
-    return SysTick->VAL;
+void trigger_error_led() {
+    err_led_ctr = STATUS_LED_DURATION_MS/TICK_MS;
+}
+
+void trigger_comm_led() {
+    comm_led_ctr = STATUS_LED_DURATION_MS/TICK_MS;
 }
 
 static volatile struct {
@@ -30,8 +28,8 @@ static volatile struct {
 
 #define NO_SYMBOL (DECODER_RETURN_CODE_LAST + 1)
 
-unsigned char random() {
-    static unsigned char x, a, b, c;
+uint8_t random() {
+    static uint8_t x, a, b, c;
     x++; //x is incremented every round and is not affected by any other variable
     a = (a ^ c ^ x); //note the mix of addition and XOR
     b = (b + a); //And the use of very few instructions
@@ -40,7 +38,7 @@ unsigned char random() {
 }
 
 enum STATUS_LEDS {
-    STATUS_LED_COMM = 1,
+    STATUS_LED_COMMUNICATION = 1,
     STATUS_LED_ERROR = 2,
     STATUS_LED_LOAD = 4,
     STATUS_LED_OPERATION = 8,
@@ -63,6 +61,7 @@ static void set_status_leds(uint8_t val) {
 
 
 int main(void) {
+    /* Startup code */
     RCC->CR |= RCC_CR_HSEON;
     while (!(RCC->CR&RCC_CR_HSERDY));
     RCC->CFGR &= ~RCC_CFGR_PLLMUL_Msk & ~RCC_CFGR_SW_Msk & ~RCC_CFGR_PPRE_Msk & ~RCC_CFGR_HPRE_Msk;
@@ -75,10 +74,11 @@ int main(void) {
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_ADCEN| RCC_APB2ENR_DBGMCUEN | RCC_APB2ENR_USART1EN | RCC_APB2ENR_SPI1EN;
 
     SystemCoreClockUpdate();
-    SysTick_Config(SystemCoreClock/100); /* 10ms interval */
+    SysTick_Config(SystemCoreClock/(1000/TICK_MS)); /* 10ms interval */
     NVIC_EnableIRQ(SysTick_IRQn);
     NVIC_SetPriority(SysTick_IRQn, 3<<5);
 
+    /* GPIO setup */
     GPIOA->MODER |=
           (3<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vboot to ADC */
         | (2<<GPIO_MODER_MODER1_Pos)  /* PA1  - RS485 DE */
@@ -102,14 +102,17 @@ int main(void) {
 
     GPIOA->ODR = 0; /* Set PA4 ODR to 0 */
 
+    /* Note: since we have quite a bunch of pin constraints we can't actually use complementary outputs for the
+     * complementary MOSFET driver control signals (CTRL_A & CTRL_B). Instead, we use two totally separate output
+     * channels (1 & 4) and emulate the dead-time generator in software. */
     GPIOB->MODER |=
           (2<<GPIO_MODER_MODER1_Pos); /* PB1  - CTRL_B to TIM 3 ch 4 */
 
     GPIOB->AFR[0] = (1<<GPIO_AFRL_AFSEL1_Pos); /* PB1 */
 
-    /* FIXME USART config */
+    serial_init();
     /* FIXME ADC config */
-    /* FIXME I2C config */
+    /* FIXME I2C config, drivers for LCD & current sensor */
 
     /* SPI config. SPI1 is used to control the shift register controlling the eight status LEDs. */
     SPI1->CR2 = (7<<SPI_CR2_DS_Pos);
@@ -122,6 +125,7 @@ int main(void) {
         | SPI_CR1_MSTR;
     SPI1->CR1 |= SPI_CR1_SPE;
 
+    /* TIM3 is used to generate the MOSFET driver control signals */
     /* TIM3 running off 48MHz APB1 clk, T=20.833ns */
     TIM3->CR1 = 0; /* Disable ARR preload (double-buffering) */
     TIM3->PSC = 48-1; /* Prescaler 48 -> f=1MHz/T=1us */
@@ -142,6 +146,7 @@ int main(void) {
 
     uint8_t txbuf[3] = {0x01, 0x05, 0x01};
     int txpos = -1;
+    unsigned int tx_start_tick = 0;
     while (42) {
         if (txstate.next_symbol == -NO_SYMBOL) {
             if (txpos == -1)
@@ -150,13 +155,16 @@ int main(void) {
                 txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
             txpos++;
-            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0]))
+            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
+                frame_duration_us = (sys_time_tick - tx_start_tick) * 10 * 1000;
+                tx_start_tick = sys_time_tick;
                 txpos = -1;
+            }
         }
     }
 }
 
-int flipbits(int in) {
+static int flipbits10(int in) {
     return
         (in&0x200)>>9 |
         (in&0x100)>>7 |
@@ -179,7 +187,7 @@ void TIM3_IRQHandler() {
     if (sym == 1) { /* last bit shifted out */
         if (txstate.next_symbol == -NO_SYMBOL) /*FIXME debug code*/
             asm volatile("bkpt");
-        sym = flipbits(txstate.next_symbol) | 1<<10;
+        sym = flipbits10(txstate.next_symbol) | 1<<10;
         txstate.next_symbol = -NO_SYMBOL;
     }
     txstate.current_symbol = sym;
@@ -205,27 +213,37 @@ void PendSV_Handler(void) {
 }
 
 void SysTick_Handler(void) {
-    static int bit = 0;
-    bit = !bit;
-
-    sys_time++;
+    sys_time_tick++;
+    sys_time_ms += TICK_MS;
+    if (sys_time_ms++ == 1000) {
+        sys_time_ms = 0;
+        sys_time_s++;
+    }
 
     /* This is a hack. We could use the SPI interrupt here if that didn't fire at the start instead of end of transmission.... -.- */
-    if (bit)
-        set_status_leds((sys_time & (1<<6)) ? STATUS_LED_OPERATION : 0);
-    else
+    if (sys_time_tick&1) {
+        uint8_t val = (sys_time_ms >= 500) ? STATUS_LED_OPERATION : 0;
+
+        if (comm_led_ctr) {
+            comm_led_ctr--;
+            val |= STATUS_LED_COMMUNICATION;
+        }
+
+        if (err_led_ctr) {
+            err_led_ctr--;
+            val |= STATUS_LED_ERROR;
+        }
+
+        set_status_leds(val);
+    } else {
         GPIOA->BSRR = 1<<4;
+    }
 }
 
 void _init(void) {
 }
 
-void MemManage_Handler(void) __attribute__((naked));
-void MemManage_Handler() {
-    asm volatile ("bkpt");
-}
-
 void BusFault_Handler(void) __attribute__((naked));
 void BusFault_Handler() {
-asm volatile ("bkpt");
+    asm volatile ("bkpt");
 }
