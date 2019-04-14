@@ -1,15 +1,33 @@
+/* 8seg LED display driver firmware
+ * Copyright (C) 2018 Sebastian Götte <code@jaseg.net>
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 
 #include "global.h"
 #include "serial.h"
 #include "i2c.h"
 #include "lcd1602.h"
+#include "mcp9801.h"
 
 #include <8b10b.h>
 
 /* Part number: STM32F030F4C6 */
 
 volatile unsigned int comm_led_ctr, err_led_ctr;
-volatile unsigned int sys_time_tick;
+volatile unsigned int sys_time_tick = 0;
 volatile unsigned int sys_time_ms;
 volatile unsigned int sys_time_s;
 unsigned int frame_duration_us;
@@ -143,7 +161,8 @@ int main(void) {
                                            using a Java(TM) GUI. */
     i2c_enable(I2C1);
     lcd1602_init();
-    lcd_write_str(0, 0, "Hello World!");
+    /* The MCP9801 temperature sensor is initialized below in the SysTick ISR since it needs a few milliseconds to
+     * powerup. */
 
     /* TIM3 is used to generate the MOSFET driver control signals */
     /* TIM3 running off 48MHz APB1 clk, T=20.833ns */
@@ -160,6 +179,9 @@ int main(void) {
     xfr_8b10b_encode_reset(&txstate.st);
     txstate.current_symbol = txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;
     TIM3->EGR |= TIM_EGR_UG;
+
+    lcd_write_str(0, 0, "8seg driver");
+    lcd_write_str(0, 1, "initialized \xbc");
 
     NVIC_EnableIRQ(TIM3_IRQn);
     NVIC_SetPriority(TIM3_IRQn, 2<<4);
@@ -238,6 +260,19 @@ void SysTick_Handler(void) {
     if (sys_time_ms++ == 1000) {
         sys_time_ms = 0;
         sys_time_s++;
+
+        int32_t temp = mcp9801_read_mdegC();
+        temp /= 100;
+        char buf[17] = { 0 };
+        strcpy(buf, "Temp: +XXX.X\xdf""C""  ");
+        buf[6] = temp >= 0 ? '+' : '-';
+        buf[7] = temp/1000 + '0';
+        buf[8] = (temp%1000)/100 + '0';
+        buf[9] = (temp%100)/10 + '0';
+        buf[11] = temp%10 + '0';
+        lcd_write_str(0, 0, buf);
+        lcd_write_str(0, 1, "    ""    ""    ""    ");
+        mcp9801_init();
     }
 
     /* This is a hack. We could use the SPI interrupt here if that didn't fire at the start instead of end of transmission.... -.- */

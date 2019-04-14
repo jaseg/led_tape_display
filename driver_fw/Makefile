@@ -41,16 +41,16 @@ cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f030x6.h $(CMSIS_PATH)/Include/c
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $^
-	$(CC) -E $(CFLAGS) -o $(@:.o=.pp) $^
+#	$(CC) -E $(CFLAGS) -o $(@:.o=.pp) $^
 
 %.o: %.s
 	$(CC) -c $(CFLAGS) -o $@ $^
-	$(CC) -E $(CFLAGS) -o $(@:.o=.pp) $^
+#	$(CC) -E $(CFLAGS) -o $(@:.o=.pp) $^
 
 %.dot: %.elf
 	r2 -a arm -qc 'aa;agC' $< 2>/dev/null >$@
 
-main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f0xx_ll_utils.o cmsis_exports.o ../common/8b10b.o serial.o mac.o i2c.o lcd1602.o
+main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f0xx_ll_utils.o cmsis_exports.o ../common/8b10b.o serial.o mac.o i2c.o lcd1602.o mcp9801.o base.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(OBJCOPY) -O ihex $@ $(@:.elf=.hex)
 	$(OBJCOPY) -O binary $@ $(@:.elf=.bin)
@@ -61,7 +61,7 @@ program: main.elf openocd.cfg
 	openocd -f openocd.cfg -c "program $< verify reset exit"
 
 clean:
-	rm -f **.o
+	rm -f **.o **.pp
 	rm -f main.elf main.hex main.bin main.map main.lst
 	rm -f **.expand
 

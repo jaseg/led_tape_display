@@ -3,45 +3,6 @@
 
 #include "global.h"
 
-// I2C HAL
-
-// I2C1
-// SCL [PB6, PB8]
-#define I2C1_SCL_GPIO_PERIPH    RCC_AHB2ENR_GPIOBEN
-#define I2C1_SCL_GPIO_PORT      GPIOB
-#define I2C1_SCL_GPIO_PIN       GPIO_PIN_8
-#define I2C1_SCL_GPIO_SRC       GPIO_PinSource8
-// SDA [PB7, PB9]
-#define I2C1_SDA_GPIO_PERIPH    RCC_AHB2ENR_GPIOBEN
-#define I2C1_SDA_GPIO_PORT      GPIOB
-#define I2C1_SDA_GPIO_PIN       GPIO_PIN_9
-#define I2C1_SDA_GPIO_SRC       GPIO_PinSource9
-
-// I2C2
-// SCL [PB10, PB13]
-#define I2C2_SCL_GPIO_PERIPH    RCC_AHB2ENR_GPIOBEN
-#define I2C2_SCL_GPIO_PORT      GPIOB
-#define I2C2_SCL_GPIO_PIN       GPIO_PIN_10
-#define I2C2_SCL_GPIO_SRC       GPIO_PinSource10
-// SDA [PB11, PB14]
-#define I2C2_SDA_GPIO_PERIPH    RCC_AHB2ENR_GPIOBEN
-#define I2C2_SDA_GPIO_PORT      GPIOB
-#define I2C2_SDA_GPIO_PIN       GPIO_PIN_11
-#define I2C2_SDA_GPIO_SRC       GPIO_PinSource11
-
-// I2C3
-// SCL [PC0]
-#define I2C3_SCL_GPIO_PERIPH    RCC_AHB2ENR_GPIOCEN
-#define I2C3_SCL_GPIO_PORT      GPIOC
-#define I2C3_SCL_GPIO_PIN       GPIO_PIN_0
-#define I2C3_SCL_GPIO_SRC       GPIO_PinSource0
-// SDA [PC1]
-#define I2C3_SDA_GPIO_PERIPH    RCC_AHB2ENR_GPIOCEN
-#define I2C3_SDA_GPIO_PORT      GPIOC
-#define I2C3_SDA_GPIO_PIN       GPIO_PIN_1
-#define I2C3_SDA_GPIO_SRC       GPIO_PinSource1
-
-
 // Definitions of I2C analog filter state
 #define I2C_AF_ENABLE          ((uint32_t)0x00000000U) // Analog filter is enabled
 #define I2C_AF_DISABLE         I2C_CR1_ANFOFF          // Analog filter is disabled

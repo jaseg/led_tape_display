@@ -1,4 +1,4 @@
-/* Megumin LED display firmware
+/* 8seg LED display driver firmware
  * Copyright (C) 2018 Sebastian Götte <code@jaseg.net>
  * 
  * This program is free software: you can redistribute it and/or modify
