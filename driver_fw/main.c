@@ -1,6 +1,8 @@
 
 #include "global.h"
 #include "serial.h"
+#include "i2c.h"
+#include "lcd1602.h"
 
 #include <8b10b.h>
 
@@ -102,6 +104,15 @@ int main(void) {
 
     GPIOA->ODR = 0; /* Set PA4 ODR to 0 */
 
+    GPIOA->OTYPER |=
+          GPIO_OTYPER_OT_1
+        | GPIO_OTYPER_OT_2;
+
+    // FIXME lag 37.3us @ 720 Ohm / 16.0us @ 360 Ohm / 2.8us @ 88 Ohm
+    GPIOA->OSPEEDR |=
+          (3<<GPIO_OSPEEDR_OSPEEDR1_Pos)
+        | (3<<GPIO_OSPEEDR_OSPEEDR2_Pos);
+
     /* Note: since we have quite a bunch of pin constraints we can't actually use complementary outputs for the
      * complementary MOSFET driver control signals (CTRL_A & CTRL_B). Instead, we use two totally separate output
      * channels (1 & 4) and emulate the dead-time generator in software. */
@@ -112,7 +123,6 @@ int main(void) {
 
     serial_init();
     /* FIXME ADC config */
-    /* FIXME I2C config, drivers for LCD & current sensor */
 
     /* SPI config. SPI1 is used to control the shift register controlling the eight status LEDs. */
     SPI1->CR2 = (7<<SPI_CR2_DS_Pos);
@@ -124,6 +134,16 @@ int main(void) {
         | (6<<SPI_CR1_BR_Pos)
         | SPI_CR1_MSTR;
     SPI1->CR1 |= SPI_CR1_SPE;
+
+    /* I2C for LCD, temp sensor, current sensor */
+    i2c_config_filters(I2C1, I2C_AF_ENABLE, 0);
+    i2c_config_timing(I2C1, 0x2000090e); /* Magic value for 100kHz I2C @ 48MHz CLK. Fell out of STMCubeMX. I love
+                                           downloading 120MB of software to download another 100MB of software, only
+                                           this time over unsecured HTTP, to generate 3.5 bytes of configuration values
+                                           using a Java(TM) GUI. */
+    i2c_enable(I2C1);
+    lcd1602_init();
+    lcd_write_str(0, 0, "Hello World!");
 
     /* TIM3 is used to generate the MOSFET driver control signals */
     /* TIM3 running off 48MHz APB1 clk, T=20.833ns */
