@@ -21,6 +21,7 @@
 #include "i2c.h"
 #include "lcd1602.h"
 #include "mcp9801.h"
+#include "ina226.h"
 
 #include <8b10b.h>
 
@@ -161,6 +162,7 @@ int main(void) {
                                            using a Java(TM) GUI. */
     i2c_enable(I2C1);
     lcd1602_init();
+    ina226_init();
     /* The MCP9801 temperature sensor is initialized below in the SysTick ISR since it needs a few milliseconds to
      * powerup. */
 
@@ -254,6 +256,11 @@ void SVC_Handler(void) {
 void PendSV_Handler(void) {
 }
 
+char hexdigit(uint8_t nibble) {
+    nibble &= 0xf;
+    return (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+}
+
 void SysTick_Handler(void) {
     sys_time_tick++;
     sys_time_ms += TICK_MS;
@@ -271,7 +278,18 @@ void SysTick_Handler(void) {
         buf[9] = (temp%100)/10 + '0';
         buf[11] = temp%10 + '0';
         lcd_write_str(0, 0, buf);
-        lcd_write_str(0, 1, "    ""    ""    ""    ");
+        strcpy(buf, "INA:XXXX""/XXX""X   ");
+        uint16_t rx = ina226_read_i();
+        buf[4] = hexdigit(rx>>12);
+        buf[5] = hexdigit(rx>>8);
+        buf[6] = hexdigit(rx>>4);
+        buf[7] = hexdigit(rx>>0);
+        rx = ina226_read_v();
+        buf[9] = hexdigit(rx>>12);
+        buf[10] = hexdigit(rx>>8);
+        buf[11] = hexdigit(rx>>4);
+        buf[12] = hexdigit(rx>>0);
+        lcd_write_str(0, 1, buf);
         mcp9801_init();
     }
 

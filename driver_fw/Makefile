@@ -30,6 +30,9 @@ LDFLAGS += -Tstm32_flash.ld
 CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc -Iconfig -I../common
 #LDFLAGS += -L$(CMSIS_PATH)/Lib/GCC -larm_cortexM0l_math
 
+SOURCES = main.c startup_stm32f030x6.s system_stm32f0xx.c base.c $(HAL_PATH)/Src/stm32f0xx_ll_utils.c cmsis_exports.c \
+		  ../common/8b10b.c serial.c mac.c i2c.c lcd1602.c mcp9801.c ina226.c
+
 ###################################################
 
 .PHONY: program clean
@@ -50,7 +53,7 @@ cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f030x6.h $(CMSIS_PATH)/Include/c
 %.dot: %.elf
 	r2 -a arm -qc 'aa;agC' $< 2>/dev/null >$@
 
-main.elf: main.o startup_stm32f030x6.o system_stm32f0xx.o $(HAL_PATH)/Src/stm32f0xx_ll_utils.o cmsis_exports.o ../common/8b10b.o serial.o mac.o i2c.o lcd1602.o mcp9801.o base.o
+main.elf: $(SOURCES)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 	$(OBJCOPY) -O ihex $@ $(@:.elf=.hex)
 	$(OBJCOPY) -O binary $@ $(@:.elf=.bin)

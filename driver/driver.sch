@@ -2745,6 +2745,6 @@ F 3 "~" H 17400 2950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Text Notes 7600 10050 0    50   ~ 0
-TODO:\n* RS485 drv fp is wide, should be narrow SOIC-8\n* Heatsink holes are plated-through, shouln't be\n* Add thermal reliefs in upper logic ground plane\n* GND/VCC input labels are swapped\n* White label field for MAC\n* Remove optoisolators\n* Add series resistor to RS485 GND\n* Add decoupling cap next to mosfet temp sensor
+TODO:\n* RS485 drv fp is wide, should be narrow SOIC-8\n* Heatsink holes are plated-through, shouln't be\n* Add thermal reliefs in upper logic ground plane\n* GND/VCC input labels are swapped\n* White label field for MAC\n* Remove optoisolators\n* Add series resistor to RS485 GND\n* Add decoupling cap next to mosfet temp sensor\n* Add INA226 filter network (see datasheet p.14)
 NoConn ~ 14600 2800
 $EndSCHEMATC
