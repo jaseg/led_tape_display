@@ -31,7 +31,7 @@ CFLAGS += -I$(CMSIS_DEV_PATH)/Include -I$(CMSIS_PATH)/Include -I$(HAL_PATH)/Inc 
 #LDFLAGS += -L$(CMSIS_PATH)/Lib/GCC -larm_cortexM0l_math
 
 SOURCES = main.c startup_stm32f030x6.s system_stm32f0xx.c base.c $(HAL_PATH)/Src/stm32f0xx_ll_utils.c cmsis_exports.c \
-		  ../common/8b10b.c serial.c mac.c i2c.c lcd1602.c mcp9801.c ina226.c
+		  ../common/8b10b.c serial.c mac.c i2c.c lcd1602.c mcp9801.c ina226.c mini-printf.c
 
 ###################################################
 

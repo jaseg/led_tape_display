@@ -23,6 +23,8 @@
 #include "mcp9801.h"
 #include "ina226.h"
 
+#include "mini-printf.h"
+
 #include <8b10b.h>
 
 /* Part number: STM32F030F4C6 */
@@ -256,11 +258,6 @@ void SVC_Handler(void) {
 void PendSV_Handler(void) {
 }
 
-char hexdigit(uint8_t nibble) {
-    nibble &= 0xf;
-    return (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
-}
-
 void SysTick_Handler(void) {
     sys_time_tick++;
     sys_time_ms += TICK_MS;
@@ -268,28 +265,17 @@ void SysTick_Handler(void) {
         sys_time_ms = 0;
         sys_time_s++;
 
-        int32_t temp = mcp9801_read_mdegC();
-        temp /= 100;
-        char buf[17] = { 0 };
-        strcpy(buf, "Temp: +XXX.X\xdf""C""  ");
-        buf[6] = temp >= 0 ? '+' : '-';
-        buf[7] = temp/1000 + '0';
-        buf[8] = (temp%1000)/100 + '0';
-        buf[9] = (temp%100)/10 + '0';
-        buf[11] = temp%10 + '0';
+        char buf[17];
+
+        int temp = mcp9801_read_mdegC();
+        int deg = temp/1000;
+        int frac = (temp%1000)/100;
+        mini_snprintf(buf, sizeof(buf), "Temp: %d.%01d\xdf""C" LCD_FILL, deg, frac);
         lcd_write_str(0, 0, buf);
-        strcpy(buf, "INA:XXXX""/XXX""X   ");
-        uint16_t rx = ina226_read_i();
-        buf[4] = hexdigit(rx>>12);
-        buf[5] = hexdigit(rx>>8);
-        buf[6] = hexdigit(rx>>4);
-        buf[7] = hexdigit(rx>>0);
-        rx = ina226_read_v();
-        buf[9] = hexdigit(rx>>12);
-        buf[10] = hexdigit(rx>>8);
-        buf[11] = hexdigit(rx>>4);
-        buf[12] = hexdigit(rx>>0);
+
+        mini_snprintf(buf, sizeof(buf), "I=%dmA U=%dmV" LCD_FILL, ina226_read_i()*INA226_I_LSB_uA/1000, ina226_read_v()*INA226_VB_LSB_uV/1000);
         lcd_write_str(0, 1, buf);
+
         mcp9801_init();
     }
 

@@ -7,6 +7,8 @@
 #define INA226_I2C_ADDR 0x80
 
 #define INA226_I_LSB_uA 2000
+#define INA226_VB_LSB_uV 1250
+#define INA226_VS_LSB_nV 2500
 #define INA226_RSHUNT_uOhm 2000
 /* FIXME validate this */
 #define INA226_CAL (5120000 / INA226_I_LSB_uA * 1000 / INA226_RSHUNT_uOhm)

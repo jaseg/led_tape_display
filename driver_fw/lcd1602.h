@@ -32,6 +32,9 @@
 #define LCD_I2C_PERIPH I2C1
 #define LCD_I2C_ADDR 0x4e
 
+/* 16 spaces you can concatenate to printf formats to make sure the entire LCD line is always cleared */
+#define LCD_FILL "    ""    ""    ""    "
+
 void lcd1602_init(); // Инициализация дисплея
 void lcd_write_str(uint8_t in_u8X, uint8_t in_u8Y, char* in_cChar); // Отправить строку на экран с указанием позиции
 void lcd_send_char(char in_cChar); // Отправить символ на экран
