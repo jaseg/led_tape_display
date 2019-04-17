@@ -18,36 +18,20 @@
 #include "global.h"
 
 #include "adc.h"
+#include "8seg_protocol.h"
+#include "transmit.h"
 
 volatile unsigned int sys_time = 0;
 volatile unsigned int sys_time_seconds = 0;
+uint16_t jitter_meas_avg_ns = 0;
 
 void TIM1_BRK_UP_TRG_COM_Handler() {
     TIM1->SR &= ~TIM_SR_UIF_Msk;
 }
 
-enum packet_type {
-    PKT_TYPE_RESERVED = 0,
-    PKT_TYPE_SET_OUTPUTS_BINARY = 1,
-    PKT_TYPE_SET_GLOBAL_BRIGHTNESS = 2,
-    PKT_TYPE_SET_OUTPUTS = 3,
-    PKT_TYPE_MAX
-};
-
-struct {
-    struct command_if_def cmd_if;
-    int payload_len[PKT_TYPE_MAX];
-} cmd_if = {{.packet_type_max=PKT_TYPE_MAX}, {
-    [PKT_TYPE_RESERVED] = 0,
-    [PKT_TYPE_SET_OUTPUTS_BINARY] = 1,
-    [PKT_TYPE_SET_GLOBAL_BRIGHTNESS] = 1,
-    [PKT_TYPE_SET_OUTPUTS] = 8 }
-};
-
 void set_drv_gpios(uint8_t val) {
     int a=!!(val&1), b=!!(val&2), c=!!(val&4), d=!!(val&8);
-    GPIOA->ODR &= ~(!a<<3 | !b<<7 | c<<6 | d<<4);
-    GPIOA->ODR |= a<<3 | b<<7 | !c<<6 | !d<<4;
+    GPIOA->BSRR = ((!a<<3 | !b<<7 | c<<6 | d<<4)<<16) | (a<<3 | b<<7 | !c<<6 | !d<<4);
 }
 
 uint8_t out_state = 0x01;
@@ -67,44 +51,39 @@ void set_outputs_binary(int mask, int global_brightness) {
     set_outputs(val);
 }
 
+void set_load(bool load) {
+    GPIOA->BSRR = (1<<2) << (load ? 0 : 16);
+}
+
 void blank(void) {
     set_drv_gpios(0);
 }
 
 volatile int bit; /* FIXME */
 void unblank_low(void) {
-    if (bit)
-        set_drv_gpios(out_state & 0xf);
-    else
-        set_drv_gpios(out_state >> 4);
+    if (backchannel_frame) { /* Set from protocol.c */
+        if (tx_next_bit() == 1)
+            set_load(1);
+        else /* 0; but also TX_IDLE */
+            set_load(0);
+
+    } else {
+        if (bit)
+            set_drv_gpios(out_state & 0xf);
+        else
+            set_drv_gpios(out_state >> 4);
+    }
 }
 
 void TIM3_IRQHandler(void) {
-    GPIOA->BSRR = 1<<10;
+    GPIOA->BSRR = 1<<10; /* debug */
     if (TIM3->SR & TIM_SR_UIF)
         unblank_low();
     else
         blank();
 
     TIM3->SR = 0;
-    GPIOA->BRR = 1<<10;
-}
-
-void handle_command(int command, uint8_t *args) {
-    static int global_brightness = 0xff;
-    switch (command) {
-        case PKT_TYPE_SET_OUTPUTS_BINARY:
-            set_outputs_binary(args[0], global_brightness);
-            break;
-
-        case PKT_TYPE_SET_GLOBAL_BRIGHTNESS:
-            global_brightness = args[0];
-            break;
-
-        case PKT_TYPE_SET_OUTPUTS:
-            set_outputs(args);
-            break;
-    }
+    GPIOA->BRR = 1<<10; /* debug */
 }
 
 int main(void) {
@@ -127,9 +106,9 @@ int main(void) {
     TIM3->CCMR2 = (6<<TIM_CCMR2_OC4M_Pos); /* PWM Mode 1 to get a clean trigger signal */
     TIM3->CCER  = TIM_CCER_CC4E; /* Enable capture/compare unit 4 connected to ADC */
 
-    TIM3->PSC   =  48-1;
-    TIM3->CCR4  = 170-1;
-    TIM3->ARR   = 200-1;
+    TIM3->PSC   =  48-1; /* 48MHz -> 1MHz */
+    TIM3->CCR4  = 170-1; /* CC4 is ADC trigger, fire 30us before end of cycle. */
+    TIM3->ARR   = 200-1; /* 1MHz -> 5kHz */
 
     TIM3->DIER |= TIM_DIER_UIE | TIM_DIER_CC4IE;
 
@@ -159,14 +138,28 @@ int main(void) {
 
     set_drv_gpios(0);
 
-	adc_configure_monitor_mode(&cmd_if.cmd_if, 20 /*us*/);
+    protocol_init();
 
+    uint32_t jitter_meas_sum = 0, jitter_meas_cnt = 0;
     while (42) {
-        int new = GPIOA->IDR & (1<<0);
-        if (new != bit) {
+        int new = GPIOA->IDR & (1<<0); /* Sample current polarity */
+        if (new != bit) { /* Zero-crossing detected */
             bit = new;
+
+            /* Store old counter value for jitter measurement. Let it overflow to handle negative offsets. */
+            int16_t cnt = (int16_t)TIM3->CNT;
+            /* Re-initialize the counter to align it with the signal edge */
             TIM3->EGR  |= TIM_EGR_UG;
+            /* Unblank since the update interrupt will not fire this time */
             unblank_low();
+
+            /* Don't handle overflow of _sum here since this value is only for monitoring anyway */
+            jitter_meas_sum += (cnt >= 0) ? cnt : -cnt;
+            if (++jitter_meas_cnt == 4000) { /* One measurement roughly every 800ms */
+                /* Divide aggregate over 4000 us-resolution measurements by 4 -> ns-resolution average */
+                uint32_t divided = jitter_meas_sum>>2;
+                jitter_meas_avg_ns = (divided < UINT16_MAX) ? divided : UINT16_MAX;
+            }
         }
         /* idle */
     }

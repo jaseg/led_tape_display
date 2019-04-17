@@ -47,5 +47,6 @@
 
 extern volatile unsigned int sys_time;
 extern volatile unsigned int sys_time_seconds;
+extern uint16_t jitter_meas_avg_ns;
 
 #endif/*__GLOBAL_H__*/

@@ -23,13 +23,13 @@
 #include "protocol.h"
 
 struct adc_measurements {
-    int16_t adc_vcc_mv;
-    int16_t adc_temp_celsius_tenths;
-    int16_t adc_vmeas_a_mv;
-    int16_t adc_vmeas_b_mv;
-    int16_t adc_mean_a_mv;
-    int16_t adc_mean_b_mv;
-    int16_t adc_mean_diff_mv;
+    int16_t vcc_mv;
+    int16_t temp_celsius_tenths;
+    int16_t vmeas_a_mv;
+    int16_t vmeas_b_mv;
+    int16_t mean_a_mv;
+    int16_t mean_b_mv;
+    int16_t mean_diff_mv;
 };
 
 enum channel_mask {
@@ -85,7 +85,7 @@ extern volatile struct adc_measurements adc_data;
 
 void adc_init(void);
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
-void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us);
+void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us);
 
 void bit_detector(struct bit_detector_st *st, int a);
 void receive_bit(struct bit_detector_st *st, int bit);

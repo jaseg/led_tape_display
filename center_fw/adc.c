@@ -78,7 +78,7 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 }
 
 /* Regular operation receiver mode */
-void adc_configure_monitor_mode(struct command_if_def *cmd_if, int ivl_us) {
+void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us) {
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
@@ -168,6 +168,11 @@ static void adc_timer_init(int psc, int ivl) {
 static void gdb_dump(void) {
 }
 
+/* Called on reception of a bit. This feeds the bit to the 8b10b state machine. When the 8b10b state machine recognizes
+ * a received symbol, this in turn calls receive_symbol. Since this is called at sampling time roughly halfway into a
+ * bit being received, receive_symbol is called roughly half-way through the last bit of the symbol, just before the
+ * symbol's end.
+ */
 void receive_bit(struct bit_detector_st *st, int bit) {
     int symbol = xfr_8b10b_feed_bit((struct state_8b10b_dec *)&st->rx8b10b, bit);
     if (symbol == -K28_1)
@@ -180,9 +185,9 @@ void receive_bit(struct bit_detector_st *st, int bit) {
         st->sync = 0;
         /* Fall through so we also pass the error to receive_symbol */
 
-    GPIOA->BSRR = 1<<9;
+    GPIOA->BSRR = 1<<9; /* debug */
     receive_symbol(&st->rx_st, symbol);
-    GPIOA->BRR = 1<<9;
+    GPIOA->BRR = 1<<9; /* debug */
 
     /* Debug scope logic */
     /*
@@ -205,23 +210,43 @@ void receive_bit(struct bit_detector_st *st, int bit) {
     */
 }
 
+/* From a series of detected line levels, extract discrete bits. This self-synchronizes to signal transitions. This
+ * expects base_interval_cycles to be set correctly. When a bit is detected, this calls receive_bit(st, bit). The call
+ * to receive_bit happens at the sampling point about half-way through the bit being received.
+ */
 void bit_detector(struct bit_detector_st *st, int a) {
     int new_bit = st->last_bit;
-    int diff = a-5500;
+    int diff = a-5500; /* FIXME extract constants */
     if (diff < - st->hysteresis_mv/2)
         new_bit = 0;
     else if (diff > st->hysteresis_mv/2)
         new_bit = 1;
     else
-        blank();
+        blank(); /* Safety, in case we get an unexpected transition */
 
     st->len_ctr++;
-    if (new_bit != st->last_bit) {
+    if (new_bit != st->last_bit) { /* On transition */
         st->last_bit = new_bit;
         st->len_ctr = 0;
-        st->committed_len_ctr = st->base_interval_cycles>>1;
+        st->committed_len_ctr = st->base_interval_cycles>>1; /* Commit first half of bit */
 
     } else if (st->len_ctr >= st->committed_len_ctr) {
+        /* The line stayed constant for a longer interval than the commited length. Interpret this as a transmitted bit.
+         *
+         *     +-- Master clock edges     -->| - - - - |<-- One bit period
+         *     |                             |         |
+         * 1   X         X         X         X         X         X         X         X
+         * ____/^^^^*^^^^\_______________________________________/^^^^*^^^^^^^^^*^^^^\__________________________________
+         * 0   v    ^                                                 v         ^
+         *     |    |                                                 |         |
+         *     |    +-------------------------------+                 +---------+
+         *     |                                    |                 |        
+         *     At this point, commit 1/2 bit (until here). This       When we arrive at the committed value, commit next
+         *     happens in the block above.                            full bit as we're now right in the middle of the
+         *                                                            first bit. This happens in the line below.
+         */
+
+        /* Commit second half of this and first half of possible next bit */
         st->committed_len_ctr += st->base_interval_cycles;
         receive_bit(st, st->last_bit);
     }
@@ -238,24 +263,28 @@ void DMA1_Channel1_IRQHandler(void) {
     if (st.adc_mode == ADC_SCOPE)
         return;
 
+    /* FIXME This code section currently is a mess since I left it as soon as it worked. Re-work this and try to get
+     * back all the useful monitoring stuff, in particular temperature. */
+
     /* This has been copied from the code examples to section 12.9 ADC>"Temperature sensor and internal reference
      * voltage" in the reference manual with the extension that we actually measure the supply voltage instead of
      * hardcoding it. This is not strictly necessary since we're running off a bored little LDO but it's free and
      * the current supply voltage is a nice health value.
      */
-    // FIXME DEBUG adc_data.adc_vcc_mv = (3300 * VREFINT_CAL)/(st.adc_aggregate[VREF_CH]);
+    // FIXME DEBUG adc_data.vcc_mv = (3300 * VREFINT_CAL)/(st.adc_aggregate[VREF_CH]);
 
     int64_t vcc = 3300;
     /* FIXME debug
-    int64_t vcc = adc_data.adc_vcc_mv;
+    int64_t vcc = adc_data.vcc_mv;
     int64_t read = st.adc_aggregate[TEMP_CH] * 10 * 10000;
     int64_t cal = TS_CAL1 * 10 * 10000;
-    adc_data.adc_temp_celsius_tenths = 300 + ((read/4096 * vcc) - (cal/4096 * 3300))/43000;
+    adc_data.temp_celsius_tenths = 300 + ((read/4096 * vcc) - (cal/4096 * 3300))/43000;
     */
 
+    /* Calculate the line voltage from the measured ADC voltage and the used resistive divider ratio */
     const long vmeas_r_total = VMEAS_R_HIGH + VMEAS_R_LOW;
-    //int a = adc_data.adc_vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*(vmeas_r_total * vcc / VMEAS_R_LOW)) >> 12;
-    int a = adc_data.adc_vmeas_a_mv = (adc_buf[VMEAS_A]*13300) >> 12;
+    //int a = adc_data.vmeas_a_mv = (st.adc_aggregate[VMEAS_A]*(vmeas_r_total * vcc / VMEAS_R_LOW)) >> 12;
+    int a = adc_data.vmeas_a_mv = (adc_buf[VMEAS_A]*13300) >> 12;
     bit_detector((struct bit_detector_st *)&st.det_st, a);
 
     /* ISR timing measurement for debugging */

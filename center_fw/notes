@@ -1,0 +1,10 @@
+Pink led strip details:
+at Vcc = 11.88V, the voltage across the 68R dropper resistor is 2.06V.
+Thus, I is 30mA, the forward voltage of the LEDs is 9.82V/3 = 3.27V.
+A single group of 3 LEDs dissipates 0.36W. At 60LEDs/m that's 7.2W/m.
+
+We loose 50% brightness due to the 2:1 AC multiplexing and another ~15% due to the generous blanking periods. To make up
+for that we need to scale the current by a factor of 2.35. This can be done by increasing VCC from 12.0V to about 14.5V.
+Assuming the multiplexing doesn't stop that's not a problem as the power dissipation of the LEDs and dropper resistors
+will remain the same as before. We need a safety cutoff in the circle firmware for that though so the LED tape doesn't
+burn up if something crashes (FIXME).

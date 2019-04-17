@@ -1,3 +1,4 @@
+/* Unit test file testing protocol.c */
 
 #include <string.h>
 #include <assert.h>
