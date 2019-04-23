@@ -143,8 +143,12 @@ void write_byte(uint8_t in_u8Byte)
     uint8_t buf[1] = { lcd_gpio | in_u8Byte };
 
     i2c_transmit(LCD_I2C_PERIPH, buf, 1, LCD_I2C_ADDR, I2C_GENSTOP_YES);
-    delay_micro(39);
+    //delay_micro(39);
 };
+
+void i2c_transmit_one(const uint8_t b) {
+	LCD_I2C_PERIPH->CR2 = LCD_I2C_ADDR | I2C_CR2_START | I2C_CR2_AUTOEND | (1 << I2C_CR2_NBYTES_Pos);
+}
 
 /*
    Отправка половины байта экрану

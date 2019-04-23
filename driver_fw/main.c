@@ -33,6 +33,7 @@ volatile unsigned int comm_led_ctr, err_led_ctr;
 volatile unsigned int sys_time_tick = 0;
 volatile unsigned int sys_time_ms;
 volatile unsigned int sys_time_s;
+volatile unsigned int sys_flag_1Hz;
 unsigned int frame_duration_us;
 volatile uint8_t global_brightness; /* FIXME implement sending */
 
@@ -45,7 +46,7 @@ void trigger_comm_led() {
 }
 
 static volatile struct {
-    int current_symbol, next_symbol;
+    int current_symbol;
     struct state_8b10b_enc st;
 } txstate;
 
@@ -181,7 +182,7 @@ int main(void) {
     TIM3->ARR = 800-1; /* Set f=2.5kHz/T=0.4ms */
 
     xfr_8b10b_encode_reset(&txstate.st);
-    txstate.current_symbol = txstate.next_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;
+    txstate.current_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;
     TIM3->EGR |= TIM_EGR_UG;
 
     lcd_write_str(0, 0, "8seg driver");
@@ -190,22 +191,22 @@ int main(void) {
     NVIC_EnableIRQ(TIM3_IRQn);
     NVIC_SetPriority(TIM3_IRQn, 2<<4);
 
-    uint8_t txbuf[3] = {0x01, 0x05, 0x01};
-    int txpos = -1;
-    unsigned int tx_start_tick = 0;
     while (42) {
-        if (txstate.next_symbol == -NO_SYMBOL) {
-            if (txpos == -1)
-                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, -K28_1);
-            else
-                txstate.next_symbol = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
+        if (sys_flag_1Hz) {
+            sys_flag_1Hz = 0; 
 
-            txpos++;
-            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
-                frame_duration_us = (sys_time_tick - tx_start_tick) * 10 * 1000;
-                tx_start_tick = sys_time_tick;
-                txpos = -1;
-            }
+            char buf[17];
+
+            int temp = mcp9801_read_mdegC();
+            int deg = temp/1000;
+            int frac = (temp%1000)/100;
+            mini_snprintf(buf, sizeof(buf), "Temp: %d.%01d\xdf""C" LCD_FILL, deg, frac);
+            lcd_write_str(0, 0, buf);
+
+            mini_snprintf(buf, sizeof(buf), "I=%dmA U=%dmV" LCD_FILL, ina226_read_i()*INA226_I_LSB_uA/1000, ina226_read_v()*INA226_VB_LSB_uV/1000);
+            lcd_write_str(0, 1, buf);
+
+            mcp9801_init();
         }
     }
 }
@@ -226,15 +227,28 @@ static int flipbits10(int in) {
 }
 
 void TIM3_IRQHandler() {
+    static int txpos = -1;
+    static unsigned int tx_start_tick = 0;
+    static uint8_t txbuf[3] = {0x01, 0x05, 0x01};
+
     TIM3->SR &= ~TIM_SR_UIF;
     int sym = txstate.current_symbol;
     int bit = sym&1;
     sym >>= 1;
     if (sym == 1) { /* last bit shifted out */
-        if (txstate.next_symbol == -NO_SYMBOL) /*FIXME debug code*/
-            asm volatile("bkpt");
-        sym = flipbits10(txstate.next_symbol) | 1<<10;
-        txstate.next_symbol = -NO_SYMBOL;
+        if (txpos == -1)
+            sym = xfr_8b10b_encode(&txstate.st, -K28_1);
+        else
+            sym = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
+
+        txpos++;
+        if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
+            frame_duration_us = (sys_time_tick - tx_start_tick) * 10 * 1000;
+            tx_start_tick = sys_time_tick;
+            txpos = -1;
+        }
+
+        sym = flipbits10(sym) | 1<<10;
     }
     txstate.current_symbol = sym;
 
@@ -264,19 +278,7 @@ void SysTick_Handler(void) {
     if (sys_time_ms++ == 1000) {
         sys_time_ms = 0;
         sys_time_s++;
-
-        char buf[17];
-
-        int temp = mcp9801_read_mdegC();
-        int deg = temp/1000;
-        int frac = (temp%1000)/100;
-        mini_snprintf(buf, sizeof(buf), "Temp: %d.%01d\xdf""C" LCD_FILL, deg, frac);
-        lcd_write_str(0, 0, buf);
-
-        mini_snprintf(buf, sizeof(buf), "I=%dmA U=%dmV" LCD_FILL, ina226_read_i()*INA226_I_LSB_uA/1000, ina226_read_v()*INA226_VB_LSB_uV/1000);
-        lcd_write_str(0, 1, buf);
-
-        mcp9801_init();
+        sys_flag_1Hz = 1;
     }
 
     /* This is a hack. We could use the SPI interrupt here if that didn't fire at the start instead of end of transmission.... -.- */

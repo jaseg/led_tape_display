@@ -37,7 +37,7 @@ SOURCES = main.c startup_stm32f030x6.s system_stm32f0xx.c base.c $(HAL_PATH)/Src
 
 .PHONY: program clean
 
-all: main.elf main.pdf
+all: main.elf
 
 cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f030x6.h $(CMSIS_PATH)/Include/core_cm0.h
 	python3 gen_cmsis_exports.py $^ > $@
