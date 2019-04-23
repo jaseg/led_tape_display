@@ -166,6 +166,7 @@ int main(void) {
     i2c_enable(I2C1);
     lcd1602_init();
     ina226_init();
+    mcp9801_init();
     /* The MCP9801 temperature sensor is initialized below in the SysTick ISR since it needs a few milliseconds to
      * powerup. */
 
@@ -206,7 +207,6 @@ int main(void) {
             mini_snprintf(buf, sizeof(buf), "I=%dmA U=%dmV" LCD_FILL, ina226_read_i()*INA226_I_LSB_uA/1000, ina226_read_v()*INA226_VB_LSB_uV/1000);
             lcd_write_str(0, 1, buf);
 
-            mcp9801_init();
         }
     }
 }
