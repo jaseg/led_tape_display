@@ -175,6 +175,8 @@ int main(void) {
     TIM3->CR1 = 0; /* Disable ARR preload (double-buffering) */
     TIM3->PSC = 48-1; /* Prescaler 48 -> f=1MHz/T=1us */
     TIM3->DIER = TIM_DIER_UIE; /* Enable update (overflow) interrupt */
+    TIM3->CCR1 = 0xffff;
+    TIM3->CCR4 = 0xffff;
     TIM3->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE; /* Configure output compare unit 1 to PWM mode 1, enable CCR1 preload */
     TIM3->CCMR2 = 6<<TIM_CCMR2_OC4M_Pos | TIM_CCMR2_OC4PE; /* Configure output compare unit 4 to PWM mode 1, enable CCR4 preload */
     TIM3->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P | TIM_CCER_CC4E | TIM_CCER_CC4P; /* Confiugre CH1 to complementary outputs */
