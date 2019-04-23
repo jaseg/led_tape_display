@@ -75,8 +75,6 @@ enum STATUS_LEDS {
 static void set_status_leds(uint8_t val) {
     /* Reset strobe. Will be set in systick handler */
     GPIOA->BRR = 1<<4;
-    //for (int i=0; i<100; i++)
-    //    asm volatile ("nop");
     /* Workaround for *nasty* hardware behavior: If SPI data width is configured as 8 bit but DR is written as 16
      * bit, SPI actually sends 16 clock cycles. Thus, we have to make sure the compiler emits a 8-bit write here.
      * Thanks, TI! */
@@ -102,7 +100,12 @@ int main(void) {
     NVIC_EnableIRQ(SysTick_IRQn);
     NVIC_SetPriority(SysTick_IRQn, 3<<5);
 
-    /* GPIO setup */
+    /* GPIO setup
+     *
+     * Note: since we have quite a bunch of pin constraints we can't actually use complementary outputs for the
+     * complementary MOSFET driver control signals (CTRL_A & CTRL_B). Instead, we use two totally separate output
+     * channels (1 & 4) and emulate the dead-time generator in software.
+     */
     GPIOA->MODER |=
           (3<<GPIO_MODER_MODER0_Pos)  /* PA0  - Vboot to ADC */
         | (2<<GPIO_MODER_MODER1_Pos)  /* PA1  - RS485 DE */
@@ -135,9 +138,6 @@ int main(void) {
           (3<<GPIO_OSPEEDR_OSPEEDR1_Pos)
         | (3<<GPIO_OSPEEDR_OSPEEDR2_Pos);
 
-    /* Note: since we have quite a bunch of pin constraints we can't actually use complementary outputs for the
-     * complementary MOSFET driver control signals (CTRL_A & CTRL_B). Instead, we use two totally separate output
-     * channels (1 & 4) and emulate the dead-time generator in software. */
     GPIOB->MODER |=
           (2<<GPIO_MODER_MODER1_Pos); /* PB1  - CTRL_B to TIM 3 ch 4 */
 
@@ -165,50 +165,56 @@ int main(void) {
                                            using a Java(TM) GUI. */
     i2c_enable(I2C1);
     lcd1602_init();
-    ina226_init();
-    mcp9801_init();
-    /* The MCP9801 temperature sensor is initialized below in the SysTick ISR since it needs a few milliseconds to
-     * powerup. */
+    ina226_init(); /* Current/voltage monitor */
+    mcp9801_init(); /* MOSFET temperature. Placed between middle two low-side MOSFETs. */
 
     /* TIM3 is used to generate the MOSFET driver control signals */
     /* TIM3 running off 48MHz APB1 clk, T=20.833ns */
     TIM3->CR1 = 0; /* Disable ARR preload (double-buffering) */
     TIM3->PSC = 48-1; /* Prescaler 48 -> f=1MHz/T=1us */
     TIM3->DIER = TIM_DIER_UIE; /* Enable update (overflow) interrupt */
+
+    /* Set both CCRs to 0xffff to ensure both bridge halves are turned off after we enable the timer. If we don't do
+     * this, we will cause a very low-ohm short circuit that at best will trigger our power supply's short-circuit or
+     * over-current protection right after power-on but at worst will detonate the mosfets.  */
     TIM3->CCR1 = 0xffff;
     TIM3->CCR4 = 0xffff;
-    TIM3->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE; /* Configure output compare unit 1 to PWM mode 1, enable CCR1 preload */
-    TIM3->CCMR2 = 6<<TIM_CCMR2_OC4M_Pos | TIM_CCMR2_OC4PE; /* Configure output compare unit 4 to PWM mode 1, enable CCR4 preload */
-    TIM3->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P | TIM_CCER_CC4E | TIM_CCER_CC4P; /* Confiugre CH1 to complementary outputs */
-    TIM3->BDTR = TIM_BDTR_MOE; /* Enable MOE on next update event, i.e. on initial timer load. */
+    /* Configure output compare unit 1 to PWM mode 1, enable CCR1 preload */
+    TIM3->CCMR1 = 6<<TIM_CCMR1_OC1M_Pos | TIM_CCMR1_OC1PE;
+    /* Configure output compare unit 4 to PWM mode 1, enable CCR4 preload */
+    TIM3->CCMR2 = 6<<TIM_CCMR2_OC4M_Pos | TIM_CCMR2_OC4PE;
+    /* Confiugre CH1 to complementary outputs */
+    TIM3->CCER = TIM_CCER_CC1E | TIM_CCER_CC1P | TIM_CCER_CC4E | TIM_CCER_CC4P;
+    /* Enable MOE on next update event, i.e. on initial timer load. */
+    TIM3->BDTR = TIM_BDTR_MOE;
+    /* Enable timer */
     TIM3->CR1 |= TIM_CR1_CEN;
-    TIM3->ARR = 800-1; /* Set f=2.5kHz/T=0.4ms */
+    /* Set f=2.5kHz/T=0.4ms */
+    TIM3->ARR = 800-1;
 
+    /* Initialize AC protocol state machine in TIM3 ISR with the AC protocol comma */
     xfr_8b10b_encode_reset(&txstate.st);
     txstate.current_symbol = xfr_8b10b_encode(&txstate.st, K28_1) | 1<<10;
+    /* The timer is still stopped. Start it by manually triggering an update event. */
     TIM3->EGR |= TIM_EGR_UG;
-
-    lcd_write_str(0, 0, "8seg driver");
-    lcd_write_str(0, 1, "initialized \xbc");
 
     NVIC_EnableIRQ(TIM3_IRQn);
     NVIC_SetPriority(TIM3_IRQn, 2<<4);
 
+    lcd_write_str(0, 0, "8seg driver");
+    lcd_write_str(0, 1, "initialized \xbc");
     while (42) {
-        if (sys_flag_1Hz) {
+        if (sys_flag_1Hz) { /* Update display every second */
             sys_flag_1Hz = 0; 
 
             char buf[17];
-
             int temp = mcp9801_read_mdegC();
             int deg = temp/1000;
             int frac = (temp%1000)/100;
             mini_snprintf(buf, sizeof(buf), "Temp: %d.%01d\xdf""C" LCD_FILL, deg, frac);
             lcd_write_str(0, 0, buf);
-
             mini_snprintf(buf, sizeof(buf), "I=%dmA U=%dmV" LCD_FILL, ina226_read_i()*INA226_I_LSB_uA/1000, ina226_read_v()*INA226_VB_LSB_uV/1000);
             lcd_write_str(0, 1, buf);
-
         }
     }
 }
@@ -228,33 +234,58 @@ static int flipbits10(int in) {
 
 }
 
+#define BACKCHANNEL_INTERVAL 10
+
 void TIM3_IRQHandler() {
     static int txpos = -1;
     static unsigned int tx_start_tick = 0;
-    static uint8_t txbuf[3] = {0x01, 0x05, 0x01};
+    static uint8_t txbuf[2] = {0x04, 0x05};
+    static int backchannel_counter = 0;
 
     TIM3->SR &= ~TIM_SR_UIF;
     int sym = txstate.current_symbol;
     int bit = sym&1;
     sym >>= 1;
     if (sym == 1) { /* last bit shifted out */
-        if (txpos == -1)
-            sym = xfr_8b10b_encode(&txstate.st, -K28_1);
-        else
-            sym = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
 
-        txpos++;
-        if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
-            frame_duration_us = (sys_time_tick - tx_start_tick) * 10 * 1000;
-            tx_start_tick = sys_time_tick;
-            txpos = -1;
+        /* Insert the backchannel sync control symbol K.28.2 once every BACKCHANNEL_INTERVAL symbols independent from AC
+         * forward channel protocol framing. The backchannel sync control symbol is different from the AC protocol comma
+         * K.28.1. The backchannel sync control symbol is not a comma, so the 8b10b receiver cannot lock on it. The only
+         * practical implication of this is that after powerup or other loss of sync, the receiver will only lock on the
+         * backchannel sync once the first AC forward-channel protocol frame has been begun. Since all backchannel comm
+         * is triggered by the driver anyway this should not be noticeable in practice.
+         */
+        backchannel_counter++;
+        if (backchannel_counter == BACKCHANNEL_INTERVAL) {
+            backchannel_counter = 0;
+            sym = xfr_8b10b_encode(&txstate.st, -K28_2); /* TODO factor out backchannel comma into constant */
+
+        } else {
+
+            if (txpos == -1)
+                sym = xfr_8b10b_encode(&txstate.st, -K28_1); /* TODO factor out comma into constant */
+            else
+                sym = xfr_8b10b_encode(&txstate.st, txbuf[txpos]);
+
+            txpos++;
+            if (txpos >= sizeof(txbuf)/sizeof(txbuf[0])) {
+                frame_duration_us = (sys_time_tick - tx_start_tick) * 10 * 1000;
+                tx_start_tick = sys_time_tick;
+                txpos = -1;
+            }
         }
 
+        /* Append one '1' bit as an end-of-symbol marker for this state machine. This bit is not actually transmitted. */
         sym = flipbits10(sym) | 1<<10;
     }
     txstate.current_symbol = sym;
 
+    /* FIXME factor out into header, or even make configurable */
 #define DEAD_TIME 100
+    /* Set both CCRs to values for opposing polarities. The dead time is always inserted at the beginning of the timer
+     * cycle due to the way the capture/compare unit PWM machinery works. By setting the CCR to 0xffff we make sure the
+     * output is never turned on, since 0xffff is larger than the ARR/counter top value.
+     */
     TIM3->CCR1 = bit ? 0xffff : DEAD_TIME;
     TIM3->CCR4 = bit ? DEAD_TIME : 0xffff;
 }
@@ -285,7 +316,7 @@ void SysTick_Handler(void) {
 
     /* This is a hack. We could use the SPI interrupt here if that didn't fire at the start instead of end of transmission.... -.- */
     if (sys_time_tick&1) {
-        uint8_t val = (sys_time_ms >= 500) ? STATUS_LED_OPERATION : 0;
+        uint8_t val = (sys_time_ms >= 300) ? STATUS_LED_OPERATION : 0;
 
         if (comm_led_ctr) {
             comm_led_ctr--;
@@ -299,6 +330,7 @@ void SysTick_Handler(void) {
 
         set_status_leds(val);
     } else {
+        /* Reset strobe for the status LED shift register. Reset in set_status_leds. */
         GPIOA->BSRR = 1<<4;
     }
 }
