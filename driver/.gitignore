@@ -1,0 +1,6 @@
+gerber.*
+*.zip
+datasheets
+8seg_drv_overlay.xcf
+8seg_drv_bottom_mask_overlay.xcf
+8seg_drv_top_mask_overlay.xcf

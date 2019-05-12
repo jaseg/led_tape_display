@@ -1,0 +1,5 @@
+*-bak
+*.bak
+# Pulseview session setup files
+*.pvs
+.ipynb_checkpoints
