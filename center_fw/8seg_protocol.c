@@ -23,7 +23,7 @@ volatile union {
 } tx_buf;
 
 void protocol_init() {
-	adc_configure_monitor_mode(&cmd_if.cmd_if, 20 /*us*/);
+	adc_configure_monitor_mode(&cmd_if.cmd_if);
     tx_init((uint8_t *)&tx_buf);
 }
 

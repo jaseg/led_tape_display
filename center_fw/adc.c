@@ -77,8 +77,11 @@ void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns) {
 	adc_timer_init(12/*250ns/tick*/, cycles);
 }
 
-/* Regular operation receiver mode */
-void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us) {
+/* FIXME figure out the proper place to configure this. */
+#define ADC_TIMER_INTERVAL_US 20
+
+/* Regular operation receiver mode. */
+void adc_configure_monitor_mode(const struct command_if_def *cmd_if) {
 	/* First, disable trigger timer, DMA and ADC in case we're reconfiguring on the fly. */
     TIM1->CR1 &= ~TIM_CR1_CEN;
     ADC1->CR &= ~ADC_CR_ADSTART;
@@ -93,7 +96,8 @@ void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us)
 	st.mean_aggregate_ctr = 0;
 
     st.det_st.hysteresis_mv = 6000;
-    st.det_st.base_interval_cycles = 10;
+    /* base_cycles * the ADC timer interval (20us) must match the driver's AC period. */ 
+    st.det_st.base_interval_cycles = 40; /* 40 * 20us = 800us/1.25kHz */
 
 	st.det_st.sync = 0;
 	st.det_st.last_bit = 0;
@@ -121,7 +125,12 @@ void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us)
     ADC1->CR |= ADC_CR_ADEN;
     ADC1->CR |= ADC_CR_ADSTART;
 
-    adc_timer_init(SystemCoreClock/1000000/*1.0us/tick*/, ivl_us);
+    /* Initialize the timer. Set the divider to get a nice round microsecond tick. The interval must be long enough to
+     * comfortably fit all conversions inside. There should be some margin since the ADC runs off its own internal RC
+     * oscillator and will drift w.r.t. the system clock. 20us is a nice value when four channels are selected (A, B,
+     * T and V).
+     */
+    adc_timer_init(SystemCoreClock/1000000/*1.0us/tick*/, 20/* us */);
 }
 
 static void adc_dma_init(int burstlen, bool enable_interrupt) {
@@ -189,7 +198,7 @@ void receive_bit(struct bit_detector_st *st, int bit) {
     receive_symbol(&st->rx_st, symbol);
     GPIOA->BRR = 1<<9; /* debug */
 
-    /* Debug scope logic */
+    /* Exceedingly handy piece of debug code: The Debug Scope 2000 (TM) */
     /*
     static int debug_buf_pos = 0;
     if (st->sync) {

@@ -85,7 +85,7 @@ extern volatile struct adc_measurements adc_data;
 
 void adc_init(void);
 void adc_configure_scope_mode(uint8_t channel_mask, int sampling_interval_ns);
-void adc_configure_monitor_mode(const struct command_if_def *cmd_if, int ivl_us);
+void adc_configure_monitor_mode(const struct command_if_def *cmd_if);
 
 void bit_detector(struct bit_detector_st *st, int a);
 void receive_bit(struct bit_detector_st *st, int bit);
