@@ -52,6 +52,9 @@ LDFLAGS += -L$(CMSIS_PATH)/Lib/GCC -larm_cortexM0l_math
 
 all: main.elf
 
+.clang:
+	echo flags = $(CFLAGS) > .clang 
+
 cmsis_exports.c: $(CMSIS_DEV_PATH)/Include/stm32f030x6.h $(CMSIS_PATH)/Include/core_cm0.h
 	python3 tools/gen_cmsis_exports.py $^ > $@
 
