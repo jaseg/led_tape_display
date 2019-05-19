@@ -5,7 +5,7 @@
 
 void ina226_init() {
     /* FIXME plug in final values for I meas backchannel */
-    uint16_t config = INA226_CONFIG_AVG_128 | INA226_CONFIG_VBUSCT_204u | INA226_CONFIG_VSHCT_1m1 |
+    uint16_t config = INA226_CONFIG_AVG_1 | INA226_CONFIG_VBUSCT_204u | INA226_CONFIG_VSHCT_4m156 |
                      INA226_CONFIG_MODE_SHUNT | INA226_CONFIG_MODE_BUS | INA226_CONFIG_MODE_CONT;
     ina226_write_reg(INA226_REG_CONFIG, config);
 

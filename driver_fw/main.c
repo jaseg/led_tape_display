@@ -189,7 +189,7 @@ int main(void) {
     TIM3->BDTR = TIM_BDTR_MOE;
     /* Enable timer */
     TIM3->CR1 |= TIM_CR1_CEN;
-    /* Set f=2.5kHz/T=0.4ms */
+    /* Set f=1.25kHz/T=0.8ms */
     TIM3->ARR = 800-1;
 
     /* Initialize AC protocol state machine in TIM3 ISR with the AC protocol comma */
